@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="256" fill="#6366f1"/>
+
+  <!-- Play Button -->
+  <path d="M200 140 L380 256 L200 372 Z" fill="white"/>
+
+  <!-- Accent Circle -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="white" stroke-width="8" opacity="0.3"/>
+</svg>
