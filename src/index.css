@@ -110,9 +110,9 @@
   -webkit-user-select: none;
 }
 
-input, textarea, .console-content {
-  user-select: text;
-  -webkit-user-select: text;
+input, textarea, .console-content, .console-content * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 /* Animations */

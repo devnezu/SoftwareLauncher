@@ -22,7 +22,7 @@ function App() {
   const [projects, setProjects] = useState([])
   const [currentProject, setCurrentProject] = useState(null)
   const [runningProjects, setRunningProjects] = useState(new Set())
-  const [consoleOutput, setConsoleOutput] = useState([])
+  const [projectConsoles, setProjectConsoles] = useState({}) // Logs separadas por projeto
   const [modalOpen, setModalOpen] = useState(false)
   const [envModalOpen, setEnvModalOpen] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
@@ -49,7 +49,7 @@ function App() {
         const outputId = `${data.projectId}-${data.taskName}-${data.type}-${data.data}-${Date.now()}`
         if (!processedOutputsRef.current.has(outputId)) {
           processedOutputsRef.current.add(outputId)
-          addConsoleOutput(data.type, data.data, data.taskName)
+          addConsoleOutput(data.projectId, data.type, data.data, data.taskName)
 
           // Limpar outputs antigos do Set para não crescer indefinidamente
           if (processedOutputsRef.current.size > 1000) {
@@ -60,7 +60,7 @@ function App() {
       }
 
       const handleProcessClosed = (event, data) => {
-        addConsoleOutput('system', `${t('project.processExited')} "${data.taskName}" ${data.code}`, '')
+        addConsoleOutput(data.projectId, 'system', `${t('project.processExited')} "${data.taskName}" ${data.code}`, '')
       }
 
       ipcRenderer.on('process-output', handleProcessOutput)
@@ -244,9 +244,15 @@ function App() {
   async function launchProject() {
     if (!currentProject || !ipcRenderer) return
 
-    setConsoleOutput([])
-    processedOutputsRef.current.clear()
-    addConsoleOutput('system', `${t('project.startingIn')} ${currentEnvironment.toUpperCase()}...`, '')
+    // Inicializar console do projeto se não existir
+    if (!projectConsoles[currentProject.id]) {
+      setProjectConsoles(prev => ({
+        ...prev,
+        [currentProject.id]: []
+      }))
+    }
+
+    addConsoleOutput(currentProject.id, 'system', `${t('project.startingIn')} ${currentEnvironment.toUpperCase()}...`, '')
 
     // Filtrar tarefas baseado no ambiente
     const tasksToRun = currentProject.tasks.filter(task => {
@@ -259,7 +265,7 @@ function App() {
     })
 
     if (tasksToRun.length === 0) {
-      addConsoleOutput('system', t('project.noTasksForEnv') || 'Nenhuma tarefa configurada para este ambiente', '')
+      addConsoleOutput(currentProject.id, 'system', t('project.noTasksForEnv') || 'Nenhuma tarefa configurada para este ambiente', '')
       return
     }
 
@@ -268,9 +274,9 @@ function App() {
 
     if (result.success) {
       setRunningProjects(new Set([...runningProjects, currentProject.id]))
-      addConsoleOutput('system', t('project.startedSuccessfully'), '')
+      addConsoleOutput(currentProject.id, 'system', t('project.startedSuccessfully'), '')
     } else {
-      addConsoleOutput('error', `${t('project.failedToStart')}: ${result.error}`, '')
+      addConsoleOutput(currentProject.id, 'error', `${t('project.failedToStart')}: ${result.error}`, '')
     }
   }
 
@@ -283,23 +289,31 @@ function App() {
       const newRunning = new Set(runningProjects)
       newRunning.delete(currentProject.id)
       setRunningProjects(newRunning)
-      addConsoleOutput('system', t('project.stopped'), '')
+      addConsoleOutput(currentProject.id, 'system', t('project.stopped'), '')
     } else {
-      addConsoleOutput('error', `${t('project.failedToStop')}: ${result.error}`, '')
+      addConsoleOutput(currentProject.id, 'error', `${t('project.failedToStop')}: ${result.error}`, '')
     }
   }
 
-  function addConsoleOutput(type, data, taskName) {
+  function addConsoleOutput(projectId, type, data, taskName) {
     const timestamp = new Date().toLocaleTimeString()
-    setConsoleOutput(prev => [...prev, { type, data, taskName, timestamp }])
+    setProjectConsoles(prev => ({
+      ...prev,
+      [projectId]: [...(prev[projectId] || []), { type, data, taskName, timestamp }]
+    }))
   }
 
   function clearConsole() {
-    setConsoleOutput([])
-    processedOutputsRef.current.clear()
+    if (!currentProject) return
+    setProjectConsoles(prev => ({
+      ...prev,
+      [currentProject.id]: []
+    }))
   }
 
   async function copyConsole() {
+    if (!currentProject) return
+    const consoleOutput = projectConsoles[currentProject.id] || []
     const text = consoleOutput
       .map(line => `[${line.timestamp}]${line.taskName ? ` [${line.taskName}]` : ''} ${line.data}`)
       .join('\n')
@@ -454,7 +468,7 @@ function App() {
                         variant="ghost"
                         size="sm"
                         onClick={copyConsole}
-                        disabled={consoleOutput.length === 0}
+                        disabled={(projectConsoles[currentProject.id] || []).length === 0}
                         className="gap-2"
                       >
                         {copied ? (
@@ -476,12 +490,12 @@ function App() {
                   </div>
                   <ScrollArea className="flex-1">
                     <div className="p-4 font-mono text-xs space-y-1 console-content">
-                      {consoleOutput.length === 0 ? (
+                      {(projectConsoles[currentProject.id] || []).length === 0 ? (
                         <div className="text-muted-foreground text-center py-8">
                           {t('project.noOutput')}
                         </div>
                       ) : (
-                        consoleOutput.map((line, index) => (
+                        (projectConsoles[currentProject.id] || []).map((line, index) => (
                           <div
                             key={index}
                             className={`${

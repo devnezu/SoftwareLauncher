@@ -1,4 +1,4 @@
-import { Minus, Square, X } from 'lucide-react'
+import { Minimize2, Maximize2, X } from 'lucide-react'
 import { useTranslation } from '../i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
@@ -25,30 +25,32 @@ export function TitleBar() {
   }
 
   return (
-    <div className="h-8 bg-card border-b border-border flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' }}>
+    <div className="h-9 bg-card border-b border-border flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' }}>
       <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full bg-primary"></div>
-        <span className="text-xs font-medium">{t('titleBar.title')}</span>
+        <span className="text-xs font-light tracking-wide">{t('titleBar.title')}</span>
       </div>
 
-      <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' }}>
+      <div className="flex items-center gap-0.5" style={{ WebkitAppRegion: 'no-drag' }}>
         <button
           onClick={handleMinimize}
-          className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded transition-colors"
+          className="w-10 h-7 flex items-center justify-center hover:bg-accent/50 transition-all duration-150 group"
+          title="Minimizar"
         >
-          <Minus className="w-3 h-3" />
+          <Minimize2 className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" strokeWidth={1.5} />
         </button>
         <button
           onClick={handleMaximize}
-          className="w-8 h-8 flex items-center justify-center hover:bg-accent rounded transition-colors"
+          className="w-10 h-7 flex items-center justify-center hover:bg-accent/50 transition-all duration-150 group"
+          title="Maximizar/Restaurar"
         >
-          <Square className="w-3 h-3" />
+          <Maximize2 className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" strokeWidth={1.5} />
         </button>
         <button
           onClick={handleClose}
-          className="w-8 h-8 flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground rounded transition-colors"
+          className="w-10 h-7 flex items-center justify-center hover:bg-destructive/90 hover:text-white transition-all duration-150 group"
+          title="Fechar"
         >
-          <X className="w-3 h-3" />
+          <X className="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" strokeWidth={1.5} />
         </button>
       </div>
     </div>
