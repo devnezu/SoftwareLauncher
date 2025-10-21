@@ -4,6 +4,9 @@ import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
 import path from 'path';
 
+// Gera uma porta aleatória entre 3000 e 9000
+const randomPort = Math.floor(Math.random() * (9000 - 3000 + 1)) + 3000;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -19,6 +22,11 @@ export default defineConfig({
     ]),
     renderer()
   ],
+  server: {
+    port: randomPort,
+    strictPort: false, // Se a porta aleatória estiver ocupada, encontra a próxima disponível
+    host: true
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
