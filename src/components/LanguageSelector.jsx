@@ -10,12 +10,24 @@ import { Button } from './ui/button'
 import { useState } from 'react'
 
 const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'pt-BR', name: 'Português', flag: '🇧🇷' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'en', name: 'English', flagCode: 'us' },
+  { code: 'pt-BR', name: 'Português', flagCode: 'br' },
+  { code: 'es', name: 'Español', flagCode: 'es' },
+  { code: 'fr', name: 'Français', flagCode: 'fr' },
+  { code: 'zh', name: '中文', flagCode: 'cn' },
 ]
+
+function FlagIcon({ code, className = "" }) {
+  return (
+    <img
+      src={`https://flagcdn.com/w40/${code}.png`}
+      srcSet={`https://flagcdn.com/w80/${code}.png 2x`}
+      alt={`${code} flag`}
+      className={`inline-block rounded ${className}`}
+      style={{ width: '24px', height: 'auto' }}
+    />
+  )
+}
 
 export function LanguageSelector() {
   const { language, setLanguage, t } = useTranslation()
@@ -31,8 +43,9 @@ export function LanguageSelector() {
         onClick={() => setOpen(true)}
         className="w-full justify-start gap-2"
       >
-        <Globe className="w-4 h-4" />
-        <span className="text-sm">{currentLang.flag} {currentLang.name}</span>
+        <Globe className="w-4 h-4" strokeWidth={1.5} />
+        <FlagIcon code={currentLang.flagCode} />
+        <span className="text-sm font-light">{currentLang.name}</span>
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -52,16 +65,16 @@ export function LanguageSelector() {
                   setLanguage(lang.code)
                   setOpen(false)
                 }}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${
                   language === lang.code
-                    ? 'bg-primary text-primary-foreground border-primary'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-lg'
                     : 'bg-card hover:bg-accent border-border'
                 }`}
               >
-                <span className="text-2xl">{lang.flag}</span>
+                <FlagIcon code={lang.flagCode} className="w-8" />
                 <div className="flex-1 text-left">
-                  <div className="font-medium">{lang.name}</div>
-                  <div className={`text-xs ${
+                  <div className="font-normal">{lang.name}</div>
+                  <div className={`text-xs font-light ${
                     language === lang.code ? 'opacity-80' : 'text-muted-foreground'
                   }`}>
                     {t(`languages.${lang.code}`)}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Play, Square, Plus, Settings, Trash2, Folder, FileText, Code2, Server } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -8,13 +8,15 @@ import { ScrollArea } from './components/ui/scroll-area'
 import { TitleBar } from './components/TitleBar'
 import { Breadcrumb } from './components/Breadcrumb'
 import { Loading } from './components/Loading'
-import { LanguageSelector } from './components/LanguageSelector'
+import { Home } from './components/Home'
+import { Sidebar } from './components/Sidebar'
 import { useTranslation } from './i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
 
 function App() {
   const { t } = useTranslation()
+  const [view, setView] = useState('home') // 'home' or 'project'
   const [projects, setProjects] = useState([])
   const [currentProject, setCurrentProject] = useState(null)
   const [runningProjects, setRunningProjects] = useState(new Set())
@@ -25,6 +27,9 @@ function App() {
   const [editingTaskIndex, setEditingTaskIndex] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentEnvironment, setCurrentEnvironment] = useState('development')
+  const [copied, setCopied] = useState(false)
+
+  const processedOutputsRef = useRef(new Set())
 
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -36,15 +41,33 @@ function App() {
     loadProjects()
 
     if (ipcRenderer) {
-      ipcRenderer.on('process-output', (event, data) => {
-        addConsoleOutput(data.type, data.data, data.taskName)
-      })
+      const handleProcessOutput = (event, data) => {
+        const outputId = `${data.projectId}-${data.taskName}-${data.type}-${data.data}-${Date.now()}`
+        if (!processedOutputsRef.current.has(outputId)) {
+          processedOutputsRef.current.add(outputId)
+          addConsoleOutput(data.type, data.data, data.taskName)
 
-      ipcRenderer.on('process-closed', (event, data) => {
+          // Limpar outputs antigos do Set para não crescer indefinidamente
+          if (processedOutputsRef.current.size > 1000) {
+            const items = Array.from(processedOutputsRef.current)
+            processedOutputsRef.current = new Set(items.slice(-500))
+          }
+        }
+      }
+
+      const handleProcessClosed = (event, data) => {
         addConsoleOutput('system', `${t('project.processExited')} "${data.taskName}" ${data.code}`, '')
-      })
+      }
+
+      ipcRenderer.on('process-output', handleProcessOutput)
+      ipcRenderer.on('process-closed', handleProcessClosed)
+
+      return () => {
+        ipcRenderer.removeListener('process-output', handleProcessOutput)
+        ipcRenderer.removeListener('process-closed', handleProcessClosed)
+      }
     }
-  }, [])
+  }, [t])
 
   async function loadProjects() {
     if (!ipcRenderer) {
@@ -242,13 +265,44 @@ function App() {
 
   function clearConsole() {
     setConsoleOutput([])
+    processedOutputsRef.current.clear()
+  }
+
+  async function copyConsole() {
+    const text = consoleOutput
+      .map(line => `[${line.timestamp}]${line.taskName ? ` [${line.taskName}]` : ''} ${line.data}`)
+      .join('\n')
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy console output:', err)
+    }
+  }
+
+  function selectProject(project) {
+    setCurrentProject(project)
+    setView('project')
+  }
+
+  function goHome() {
+    setView('home')
+    setCurrentProject(null)
+  }
+
+  function handleBreadcrumbNav(index) {
+    if (index === 0) {
+      goHome()
+    }
   }
 
   const isRunning = currentProject && runningProjects.has(currentProject.id)
 
-  const breadcrumbItems = currentProject
-    ? [t('breadcrumb.projects'), currentProject.name]
-    : [t('breadcrumb.projects')]
+  const breadcrumbItems = view === 'home'
+    ? ['Home']
+    : ['Home', currentProject?.name || t('breadcrumb.projects')]
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -258,70 +312,26 @@ function App() {
         <Loading message={t('loading.projects')} />
       ) : (
         <div className="flex flex-1 min-h-0">
-          <aside className="w-80 border-r border-border flex flex-col">
-            <div className="p-6 border-b border-border">
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-lg font-semibold">{t('sidebar.projects')}</h1>
-                <Button onClick={openNewProjectModal} size="sm">
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            <ScrollArea className="flex-1">
-              <div className="p-3">
-                {projects.length === 0 && (
-                  <div className="text-center text-muted-foreground text-sm py-8">
-                    {t('sidebar.noProjects')}
-                  </div>
-                )}
-                {projects.map(project => (
-                  <div
-                    key={project.id}
-                    onClick={() => setCurrentProject(project)}
-                    className={`p-3 mb-2 rounded-lg cursor-pointer transition-colors ${
-                      currentProject?.id === project.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-card hover:bg-accent'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      {runningProjects.has(project.id) && (
-                        <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 animate-pulse" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm truncate">{project.name}</h3>
-                        <p className="text-xs opacity-70 truncate mt-0.5">
-                          {project.description || t('sidebar.noDescription')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-
-            <div className="p-3 border-t border-border">
-              <LanguageSelector />
-            </div>
-          </aside>
+          <Sidebar
+            projects={projects}
+            currentProject={currentProject}
+            runningProjects={runningProjects}
+            onSelectProject={selectProject}
+            onNewProject={openNewProjectModal}
+          />
 
           <main className="flex-1 flex flex-col">
-            {!currentProject ? (
-              <>
-                <Breadcrumb items={breadcrumbItems} />
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <Server className="w-24 h-24 mx-auto mb-4 opacity-20" />
-                    <h2 className="text-2xl font-semibold mb-2">{t('welcome.title')}</h2>
-                    <p className="text-muted-foreground">{t('welcome.subtitle')}</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <Breadcrumb items={breadcrumbItems} />
+            <Breadcrumb items={breadcrumbItems} onNavigate={handleBreadcrumbNav} />
 
+            {view === 'home' ? (
+              <Home
+                projects={projects}
+                runningProjects={runningProjects}
+                onSelectProject={selectProject}
+                onNewProject={openNewProjectModal}
+              />
+            ) : currentProject && (
+              <>
                 <div className="p-6 border-b border-border flex justify-between items-center">
                   <div className="flex items-center gap-4">
                     <div>
@@ -407,8 +417,31 @@ function App() {
 
                 <div className="flex-1 flex flex-col min-h-0">
                   <div className="px-6 py-3 border-b border-border flex justify-between items-center">
-                    <h3 className="text-sm font-semibold">{t('project.console')}</h3>
-                    <Button variant="ghost" size="sm" onClick={clearConsole}>{t('buttons.clear')}</Button>
+                    <h3 className="text-sm font-normal">{t('project.console')}</h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={copyConsole}
+                        disabled={consoleOutput.length === 0}
+                        className="gap-2"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="w-4 h-4" strokeWidth={1.5} />
+                            <span className="font-light">{t('buttons.copied')}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" strokeWidth={1.5} />
+                            <span className="font-light">{t('buttons.copy')}</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={clearConsole}>
+                        <span className="font-light">{t('buttons.clear')}</span>
+                      </Button>
+                    </div>
                   </div>
                   <ScrollArea className="flex-1">
                     <div className="p-4 font-mono text-xs space-y-1">

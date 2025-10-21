@@ -10,6 +10,23 @@ export const translations = {
       projects: 'Projetos',
       noProjects: 'Nenhum projeto ainda',
       noDescription: 'Sem descrição',
+      collapse: 'Recolher sidebar',
+      expand: 'Expandir sidebar',
+    },
+    home: {
+      welcome: 'Bem-vindo',
+      subtitle: 'Gerencie e execute seus projetos de desenvolvimento',
+      stats: {
+        totalProjects: 'Total de Projetos',
+        activeProjects: 'Projetos Ativos',
+        recentActivity: 'Atividade Recente',
+      },
+      recentProjects: 'Projetos Recentes',
+      tasks: 'tarefas',
+      empty: {
+        title: 'Nenhum projeto criado',
+        subtitle: 'Crie seu primeiro projeto para começar a automatizar seu fluxo de desenvolvimento',
+      },
     },
     welcome: {
       title: 'Bem-vindo ao Software Launcher',
@@ -49,6 +66,8 @@ export const translations = {
       selectDirectory: 'Selecionar Diretório',
       selectFile: 'Selecionar Arquivo',
       configure: 'Configurar',
+      copy: 'Copiar',
+      copied: 'Copiado!',
     },
     modal: {
       newProject: 'Novo Projeto',
@@ -105,6 +124,23 @@ export const translations = {
       projects: 'Projects',
       noProjects: 'No projects yet',
       noDescription: 'No description',
+      collapse: 'Collapse sidebar',
+      expand: 'Expand sidebar',
+    },
+    home: {
+      welcome: 'Welcome',
+      subtitle: 'Manage and run your development projects',
+      stats: {
+        totalProjects: 'Total Projects',
+        activeProjects: 'Active Projects',
+        recentActivity: 'Recent Activity',
+      },
+      recentProjects: 'Recent Projects',
+      tasks: 'tasks',
+      empty: {
+        title: 'No projects created',
+        subtitle: 'Create your first project to start automating your development workflow',
+      },
     },
     welcome: {
       title: 'Welcome to Software Launcher',
@@ -144,6 +180,8 @@ export const translations = {
       selectDirectory: 'Select Directory',
       selectFile: 'Select File',
       configure: 'Configure',
+      copy: 'Copy',
+      copied: 'Copied!',
     },
     modal: {
       newProject: 'New Project',
@@ -200,6 +238,23 @@ export const translations = {
       projects: '项目',
       noProjects: '还没有项目',
       noDescription: '无描述',
+      collapse: '收起侧边栏',
+      expand: '展开侧边栏',
+    },
+    home: {
+      welcome: '欢迎',
+      subtitle: '管理和运行您的开发项目',
+      stats: {
+        totalProjects: '项目总数',
+        activeProjects: '活跃项目',
+        recentActivity: '最近活动',
+      },
+      recentProjects: '最近项目',
+      tasks: '任务',
+      empty: {
+        title: '未创建项目',
+        subtitle: '创建您的第一个项目以开始自动化开发流程',
+      },
     },
     welcome: {
       title: '欢迎使用软件启动器',
@@ -239,6 +294,8 @@ export const translations = {
       selectDirectory: '选择目录',
       selectFile: '选择文件',
       configure: '配置',
+      copy: '复制',
+      copied: '已复制！',
     },
     modal: {
       newProject: '新建项目',
@@ -295,6 +352,23 @@ export const translations = {
       projects: 'Projets',
       noProjects: 'Aucun projet pour le moment',
       noDescription: 'Sans description',
+      collapse: 'Réduire la barre latérale',
+      expand: 'Développer la barre latérale',
+    },
+    home: {
+      welcome: 'Bienvenue',
+      subtitle: 'Gérez et exécutez vos projets de développement',
+      stats: {
+        totalProjects: 'Projets Totaux',
+        activeProjects: 'Projets Actifs',
+        recentActivity: 'Activité Récente',
+      },
+      recentProjects: 'Projets Récents',
+      tasks: 'tâches',
+      empty: {
+        title: 'Aucun projet créé',
+        subtitle: 'Créez votre premier projet pour automatiser votre flux de développement',
+      },
     },
     welcome: {
       title: 'Bienvenue dans Lanceur de Logiciels',
@@ -334,6 +408,8 @@ export const translations = {
       selectDirectory: 'Sélectionner le Répertoire',
       selectFile: 'Sélectionner le Fichier',
       configure: 'Configurer',
+      copy: 'Copier',
+      copied: 'Copié!',
     },
     modal: {
       newProject: 'Nouveau Projet',
@@ -390,6 +466,23 @@ export const translations = {
       projects: 'Proyectos',
       noProjects: 'Aún no hay proyectos',
       noDescription: 'Sin descripción',
+      collapse: 'Contraer barra lateral',
+      expand: 'Expandir barra lateral',
+    },
+    home: {
+      welcome: 'Bienvenido',
+      subtitle: 'Administra y ejecuta tus proyectos de desarrollo',
+      stats: {
+        totalProjects: 'Proyectos Totales',
+        activeProjects: 'Proyectos Activos',
+        recentActivity: 'Actividad Reciente',
+      },
+      recentProjects: 'Proyectos Recientes',
+      tasks: 'tareas',
+      empty: {
+        title: 'No hay proyectos creados',
+        subtitle: 'Crea tu primer proyecto para automatizar tu flujo de desarrollo',
+      },
     },
     welcome: {
       title: 'Bienvenido a Lanzador de Software',
@@ -429,6 +522,8 @@ export const translations = {
       selectDirectory: 'Seleccionar Directorio',
       selectFile: 'Seleccionar Archivo',
       configure: 'Configurar',
+      copy: 'Copiar',
+      copied: '¡Copiado!',
     },
     modal: {
       newProject: 'Nuevo Proyecto',
