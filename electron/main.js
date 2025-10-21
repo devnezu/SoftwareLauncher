@@ -30,7 +30,11 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    // Usa a URL do servidor de desenvolvimento fornecida pelo vite-plugin-electron
+    // ou fallback para localhost:5173 se não estiver definida
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+    mainWindow.loadURL(devServerUrl);
+    console.log('Loading development server from:', devServerUrl);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }

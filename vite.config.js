@@ -7,7 +7,7 @@ import path from 'path';
 // Gera uma porta aleatória entre 3000 e 9000
 const randomPort = Math.floor(Math.random() * (9000 - 3000 + 1)) + 3000;
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     electron([
@@ -37,4 +37,4 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true
   }
-});
+}));
