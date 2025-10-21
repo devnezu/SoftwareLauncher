@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const { spawn } = require('child_process');
@@ -24,15 +24,17 @@ function createWindow() {
       webSecurity: false
     },
     backgroundColor: '#0a0a0a',
-    frame: true,
-    titleBarStyle: 'default',
+    frame: false, // Custom title bar
+    titleBarStyle: 'hidden',
     icon: path.join(__dirname, '../assets', 'icon.png')
   });
+
+  // Remove o menu padrão
+  Menu.setApplicationMenu(null);
 
   // Em desenvolvimento, carrega do servidor Vite
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
   } else {
     // Em produção, carrega do build
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -64,13 +66,29 @@ app.on('activate', () => {
 
 // IPC Handlers
 
+// Window controls
+ipcMain.handle('window-minimize', () => {
+  mainWindow.minimize();
+});
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+});
+
+ipcMain.handle('window-close', () => {
+  mainWindow.close();
+});
+
 // Carregar projetos salvos
 ipcMain.handle('load-projects', async () => {
   try {
     const data = await fs.readFile(configPath, 'utf-8');
     return JSON.parse(data);
   } catch (error) {
-    // Se o arquivo não existir, retorna array vazio
     return [];
   }
 });
@@ -85,16 +103,148 @@ ipcMain.handle('save-projects', async (event, projects) => {
   }
 });
 
+// Selecionar diretório
+ipcMain.handle('select-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+
+  return null;
+});
+
+// Selecionar arquivo .env
+ipcMain.handle('select-env-file', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Environment Files', extensions: ['env'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+
+  return null;
+});
+
+// Ler e parsear arquivo .env
+ipcMain.handle('parse-env-file', async (event, filePath) => {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    const variables = {};
+
+    const lines = content.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Ignora comentários e linhas vazias
+      if (!trimmed || trimmed.startsWith('#')) {
+        continue;
+      }
+
+      // Parse KEY=VALUE
+      const equalIndex = trimmed.indexOf('=');
+      if (equalIndex > 0) {
+        const key = trimmed.substring(0, equalIndex).trim();
+        const value = trimmed.substring(equalIndex + 1).trim();
+        variables[key] = value;
+      }
+    }
+
+    return { success: true, variables };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Escrever arquivo .env
+ipcMain.handle('write-env-file', async (event, filePath, variables) => {
+  try {
+    // Lê o arquivo original para preservar comentários e estrutura
+    let content = '';
+    try {
+      content = await fs.readFile(filePath, 'utf-8');
+    } catch (e) {
+      // Arquivo não existe, criar do zero
+    }
+
+    const lines = content.split('\n');
+    const newLines = [];
+    const updatedKeys = new Set();
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Preserva comentários e linhas vazias
+      if (!trimmed || trimmed.startsWith('#')) {
+        newLines.push(line);
+        continue;
+      }
+
+      // Parse KEY=VALUE
+      const equalIndex = trimmed.indexOf('=');
+      if (equalIndex > 0) {
+        const key = trimmed.substring(0, equalIndex).trim();
+
+        if (variables.hasOwnProperty(key)) {
+          // Atualiza valor
+          newLines.push(`${key}=${variables[key]}`);
+          updatedKeys.add(key);
+        } else {
+          // Mantém linha original
+          newLines.push(line);
+        }
+      } else {
+        newLines.push(line);
+      }
+    }
+
+    // Adiciona novas variáveis que não existiam
+    for (const [key, value] of Object.entries(variables)) {
+      if (!updatedKeys.has(key)) {
+        newLines.push(`${key}=${value}`);
+      }
+    }
+
+    await fs.writeFile(filePath, newLines.join('\n'), 'utf-8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Executar projeto
-ipcMain.handle('launch-project', async (event, project) => {
+ipcMain.handle('launch-project', async (event, project, environment) => {
   try {
     const projectProcesses = [];
 
+    // Primeiro, atualiza todos os .env files de acordo com o ambiente
+    for (const task of project.tasks) {
+      if (task.envFilePath && task.envVariables) {
+        const variablesToWrite = {};
+
+        for (const [key, config] of Object.entries(task.envVariables)) {
+          // Usa o valor do ambiente selecionado
+          variablesToWrite[key] = config[environment] || config.development || '';
+        }
+
+        const result = await ipcMain.emit('write-env-file', {}, task.envFilePath, variablesToWrite);
+      }
+    }
+
+    // Aguarda um pouco para garantir que os arquivos foram escritos
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Então inicia os processos
     for (const task of project.tasks) {
       const env = {
-        ...process.env,
-        ...project.environmentVariables,
-        ...task.environmentVariables
+        ...process.env
       };
 
       // Cria o processo
@@ -168,78 +318,4 @@ ipcMain.handle('stop-project', async (event, projectId) => {
   } catch (error) {
     return { success: false, error: error.message };
   }
-});
-
-// Selecionar diretório
-ipcMain.handle('select-directory', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
-  }
-
-  return null;
-});
-
-// Carregar projetos mock para debug
-ipcMain.handle('load-mock-projects', async () => {
-  return [
-    {
-      id: 'mock-1',
-      name: 'Full Stack App',
-      description: 'React Frontend + Node.js Backend',
-      tasks: [
-        {
-          name: 'Frontend',
-          command: 'echo "Frontend server started on http://localhost:3000" && timeout /t 999999',
-          workingDirectory: process.cwd(),
-          environmentVariables: {
-            PORT: '3000'
-          }
-        },
-        {
-          name: 'Backend',
-          command: 'echo "Backend API started on http://localhost:5000" && timeout /t 999999',
-          workingDirectory: process.cwd(),
-          environmentVariables: {
-            PORT: '5000'
-          }
-        }
-      ],
-      environmentVariables: {
-        NODE_ENV: 'development'
-      }
-    },
-    {
-      id: 'mock-2',
-      name: 'Microservices',
-      description: 'Auth + API Gateway + Payment Service',
-      tasks: [
-        {
-          name: 'Auth Service',
-          command: 'echo "Auth Service started" && timeout /t 999999',
-          workingDirectory: process.cwd(),
-          environmentVariables: {}
-        },
-        {
-          name: 'API Gateway',
-          command: 'echo "API Gateway started" && timeout /t 999999',
-          workingDirectory: process.cwd(),
-          environmentVariables: {}
-        },
-        {
-          name: 'Payment Service',
-          command: 'echo "Payment Service started" && timeout /t 999999',
-          workingDirectory: process.cwd(),
-          environmentVariables: {}
-        }
-      ],
-      environmentVariables: {
-        NODE_ENV: 'development',
-        DEBUG: 'true'
-      }
-    }
-  ];
 });
