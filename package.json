@@ -22,9 +22,6 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1"
   },
-  "dependencies": {
-    "node-pty": "^1.0.0"
-  },
   "build": {
     "appId": "com.softwarelauncher.app",
     "productName": "Software Launcher",
