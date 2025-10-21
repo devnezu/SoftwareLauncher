@@ -1,40 +1,36 @@
 # Assets
 
-Esta pasta contém os ícones e recursos visuais da aplicação.
+Ícones e recursos visuais da aplicação.
 
-## Ícones Necessários
-
-Para fazer o build da aplicação, você precisará adicionar os seguintes ícones nesta pasta:
+## Ícones Necessários para Build
 
 ### Windows
-- `icon.ico` - Ícone no formato ICO (256x256 ou maior)
+- `icon.ico` - 256x256 ou maior
 
 ### Linux
-- `icon.png` - Ícone no formato PNG (512x512 recomendado)
+- `icon.png` - 512x512 recomendado
 
 ### macOS
-- `icon.icns` - Ícone no formato ICNS
+- `icon.icns` - Formato ICNS padrão
 
-## Como Criar os Ícones
+## Criar Ícones
 
-Você pode usar ferramentas online ou locais para converter uma imagem PNG em diferentes formatos:
+### Online
+- [CloudConvert](https://cloudconvert.com/)
+- [iConvert Icons](https://iconverticons.com/)
 
-### Ferramentas Online
-- [CloudConvert](https://cloudconvert.com/) - Converte para ICO e ICNS
-- [iConvert Icons](https://iconverticons.com/) - Especializado em ícones
-
-### Ferramentas Desktop
+### Desktop
 - **Windows**: [IcoFX](https://icofx.ro/)
 - **macOS**: [Image2Icon](https://img2icnsapp.com/)
 - **Linux**: ImageMagick
 
-### Usando ImageMagick (Linux/Mac)
+### ImageMagick (Linux/Mac)
 
 ```bash
-# Criar ICO
+# ICO
 convert icon.png -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico
 
-# Criar ICNS (macOS)
+# ICNS (macOS)
 mkdir icon.iconset
 sips -z 16 16 icon.png --out icon.iconset/icon_16x16.png
 sips -z 32 32 icon.png --out icon.iconset/icon_16x16@2x.png
@@ -49,19 +45,13 @@ cp icon.png icon.iconset/icon_512x512@2x.png
 iconutil -c icns icon.iconset
 ```
 
-## Design Recomendado
+## Especificações
 
-Para melhores resultados, crie um ícone:
-
-- **Tamanho**: 1024x1024 pixels
+- **Tamanho base**: 1024x1024 pixels
 - **Formato**: PNG com transparência
 - **Design**: Simples e reconhecível em tamanhos pequenos
-- **Cores**: Use as cores do tema da aplicação (#6366f1 - roxo/azul)
+- **Dica**: Use play button (▶) para representar "launcher"
 
-### Sugestão de Design
+---
 
-Um play button (▶) estilizado pode representar bem a função "launcher" da aplicação.
-
-## Nota
-
-Enquanto os ícones não forem adicionados, a aplicação usará o ícone padrão do Electron durante o desenvolvimento. O build só funcionará completamente quando os ícones estiverem presentes.
+**Nota**: Durante desenvolvimento, o Electron usa ícone padrão. Build requer ícones customizados.

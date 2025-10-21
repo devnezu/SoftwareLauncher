@@ -1,162 +1,273 @@
-# Guia de Início Rápido - Software Launcher
+# Guia de Início Rápido
 
-## ⚡ Instalação e Primeiro Uso (5 minutos)
-
-### 1. Instalar Dependências
+## ⚡ Instalação (2 minutos)
 
 ```bash
+# 1. Instalar dependências
 npm install
+
+# 2. Executar aplicação
+npm run dev
 ```
 
-### 2. Executar a Aplicação
-
-```bash
-npm start
-```
-
-Pronto! A aplicação será aberta.
-
-## 🎯 Criando Seu Primeiro Projeto
-
-### Exemplo: Projeto Full Stack React + Node.js
-
-Vamos configurar um projeto que inicia frontend e backend automaticamente.
-
-#### Passo 1: Criar Novo Projeto
-
-1. Clique no botão **"Novo Projeto"** (botão roxo na sidebar)
-
-#### Passo 2: Informações Básicas
-
-- **Nome**: `Meu App Full Stack`
-- **Descrição**: `Frontend React + Backend Node.js`
-
-#### Passo 3: Adicionar Tarefa do Frontend
-
-1. Clique em **"Adicionar Tarefa"**
-2. Preencha:
-   - **Nome**: `Frontend`
-   - **Comando**: `yarn dev` (ou `npm run dev`)
-   - **Diretório**: Clique em "Selecionar" e escolha a pasta do frontend
-     - Exemplo: `C:\projetos\meu-app\frontend`
-
-#### Passo 4: Adicionar Tarefa do Backend
-
-1. Clique em **"Adicionar Tarefa"** novamente
-2. Preencha:
-   - **Nome**: `Backend`
-   - **Comando**: `yarn dev` (ou `npm run dev`)
-   - **Diretório**: Clique em "Selecionar" e escolha a pasta do backend
-     - Exemplo: `C:\projetos\meu-app\backend`
-
-#### Passo 5: Variáveis de Ambiente (Opcional)
-
-Se quiser adicionar variáveis de ambiente globais:
-
-1. Clique em **"Adicionar Variável"**
-2. Preencha:
-   - **Nome**: `NODE_ENV`
-   - **Valor**: `development`
-
-#### Passo 6: Salvar
-
-Clique em **"Salvar Projeto"**
-
-#### Passo 7: Executar! 🚀
-
-1. Clique no projeto na sidebar
-2. Clique no botão **"Executar"**
-3. Veja ambos os servidores iniciando no console!
-
-## 📊 Visualização do Console
-
-O console mostrará a saída de todas as tarefas em tempo real:
-
-```
-[Frontend] Servidor iniciado em http://localhost:3000
-[Backend] API rodando em http://localhost:5000
-```
-
-## 🛑 Parar o Projeto
-
-Clique no botão **"Parar"** para encerrar todos os processos de uma vez.
-
-## 💡 Dicas Rápidas
-
-### Comandos Comuns
-
-| Tipo de Projeto | Comando Usual |
-|----------------|---------------|
-| React (Vite) | `npm run dev` |
-| React (CRA) | `npm start` |
-| Next.js | `npm run dev` |
-| Node.js | `npm run dev` ou `node index.js` |
-| Python | `python app.py` |
-| Docker | `docker-compose up` |
-
-### Variáveis de Ambiente Úteis
-
-| Variável | Uso | Exemplo |
-|----------|-----|---------|
-| `NODE_ENV` | Ambiente Node.js | `development` |
-| `PORT` | Porta do servidor | `3000` |
-| `DEBUG` | Logs detalhados | `true` |
-| `API_URL` | URL da API | `http://localhost:5000` |
-
-## 🔧 Editando Projetos
-
-1. Selecione o projeto na sidebar
-2. Clique em **"Editar"**
-3. Faça as alterações necessárias
-4. Clique em **"Salvar Projeto"**
-
-## 🗑️ Excluindo Projetos
-
-1. Selecione o projeto na sidebar
-2. Clique em **"Excluir"**
-3. Confirme a exclusão
-
-## 🎨 Múltiplos Projetos
-
-Você pode criar quantos projetos quiser! Exemplos:
-
-- **Projeto 1**: E-commerce (Frontend + Backend + Database)
-- **Projeto 2**: Blog (Next.js + Strapi)
-- **Projeto 3**: Dashboard (React + Python API)
-
-Cada projeto mantém suas configurações independentes.
-
-## 🚨 Solução de Problemas
-
-### O comando não está sendo executado
-
-- ✅ Verifique se o caminho do diretório está correto
-- ✅ Verifique se o comando é válido naquele diretório
-- ✅ Tente executar o comando manualmente no terminal primeiro
-
-### O processo não para corretamente
-
-- No Windows, alguns processos podem levar alguns segundos para encerrar completamente
-- Você pode fechar a aplicação que todos os processos serão encerrados automaticamente
-
-### Caracteres estranhos no console
-
-- Isso pode acontecer com alguns frameworks que usam cores no terminal
-- A saída ainda é funcional, apenas a formatação pode ficar diferente
-
-## 📚 Próximos Passos
-
-Agora que você criou seu primeiro projeto, explore:
-
-- Adicionar mais tarefas ao projeto
-- Configurar variáveis de ambiente específicas
-- Criar projetos para diferentes ambientes (dev, staging, prod)
-- Experimentar com diferentes tipos de comandos
-
-## ❓ Precisa de Ajuda?
-
-Consulte o [README.md](README.md) completo para documentação detalhada.
+A aplicação abrirá automaticamente com projetos de exemplo.
 
 ---
 
-**Divirta-se automatizando seus projetos! 🎉**
+## 🎯 Exemplo Prático: Projeto Full Stack
+
+Vamos configurar um projeto completo com **Frontend + Backend + Ngrok** (similar ao Alpha Force BR).
+
+### Passo 1: Criar Projeto
+
+Clique em **"Novo Projeto"** e preencha:
+
+- **Nome**: `Alpha Force BR - Full Stack`
+- **Descrição**: `E-commerce com React + Node.js + Ngrok`
+
+### Passo 2: Adicionar Tasks
+
+#### Task 1 - Frontend
+
+- **Nome**: `Frontend`
+- **Comando**: `cd frontend && yarn dev`
+- **Diretório**: Selecionar pasta `frontend/`
+- **Arquivo .env**: Selecionar `frontend/.env`
+
+#### Task 2 - Backend
+
+- **Nome**: `Backend`
+- **Comando**: `cd backend && yarn dev`
+- **Diretório**: Selecionar pasta `backend/`
+- **Arquivo .env**: Selecionar `backend/.env`
+
+#### Task 3 - Ngrok (COM MONITORAMENTO) 🔍
+
+1. **Nome**: `Ngrok Tunnel`
+2. **Comando**: `ngrok http 3000`
+3. **Diretório**: Pasta raiz do projeto
+4. **Clique no botão 🔍** ao lado do campo de comando
+5. **Resultado**: Sistema detectará automaticamente:
+   ```
+   ✅ ngrok detectado!
+
+   📡 API: http://localhost:4040/api/tunnels
+   📝 Atualizar variável: WEBHOOK_URL
+   🔄 Transformação: {{url}}/v1/webhook
+   ⏱️ Timeout: 15x de 2s
+   ```
+6. **Marcar**: ✅ "Monitorar ngrok e capturar URL"
+7. **Arquivo .env**: Selecionar `backend/.env`
+
+#### Tasks Adicionais (Opcional)
+
+**Task 4 - Redis**:
+- Comando: `redis-cli`
+- Sem monitoramento
+
+**Task 5 - MeiliSearch**:
+- Comando: `meilisearch --http-addr 127.0.0.1:3001 --master-key sua_chave`
+- Sem monitoramento
+
+**Task 6 - Cloudflared**:
+- Comando: `cloudflared tunnel run seu_tunnel`
+- Sem monitoramento
+
+### Passo 3: Variáveis de Ambiente Globais (Opcional)
+
+Se quiser adicionar variáveis aplicadas a todas as tasks:
+
+```
+NODE_ENV=development
+DEBUG=true
+```
+
+### Passo 4: Salvar e Executar
+
+1. Clique em **"Salvar Projeto"**
+2. Selecione o projeto na sidebar
+3. Clique em **"Executar"**
+
+### Passo 5: Acompanhar Execução
+
+Você verá no console:
+
+```
+[Frontend] VITE v5.0.0  ready in 234 ms
+[Frontend] ➜  Local:   http://localhost:5173/
+
+[Backend] 🚀 Servidor rodando na porta 3000
+
+[Ngrok Tunnel] Session Status  online
+[Ngrok Tunnel] Forwarding      https://abc123.ngrok-free.app -> http://localhost:3000
+
+🔗 URLs Capturadas:
+┌─────────────────────────────────────────────────┐
+│ NGROK                                           │
+│ https://abc123.ngrok-free.app/v1/webhook        │
+│                                        [Copiar] │
+└─────────────────────────────────────────────────┘
+```
+
+### Passo 6: Verificar Atualização do .env
+
+O arquivo `backend/.env` foi atualizado automaticamente:
+
+```bash
+# Antes
+WEBHOOK_URL=
+
+# Depois (atualizado automaticamente!)
+WEBHOOK_URL=https://abc123.ngrok-free.app/v1/webhook
+```
+
+---
+
+## 🔧 Configuração Manual de Monitoramento
+
+Se preferir configurar manualmente (sem o botão 🔍):
+
+1. No formulário da task, expanda **"Monitoramento de Serviço"**
+2. Marque **"Ativar Monitoramento"**
+3. Preencha:
+   - **Tipo**: `ngrok` ou `cloudflared`
+   - **URL da API**: `http://localhost:4040/api/tunnels`
+   - **Variável .env**: `WEBHOOK_URL`
+   - **Transformação**: `{{url}}/v1/webhook` (opcional)
+   - **Max Tentativas**: `15`
+   - **Intervalo (ms)**: `2000`
+
+---
+
+## 📊 Comandos Comuns
+
+| Framework/Ferramenta | Comando Típico |
+|---------------------|----------------|
+| React (Vite) | `npm run dev` |
+| React (CRA) | `npm start` |
+| Next.js | `npm run dev` |
+| Node.js (Express) | `npm run dev` |
+| Python (Flask) | `python app.py` |
+| Docker Compose | `docker-compose up` |
+| Ngrok | `ngrok http 3000` |
+| Cloudflared | `cloudflared tunnel run nome` |
+
+---
+
+## 🎨 Múltiplos Ambientes
+
+Crie projetos separados para diferentes ambientes:
+
+### Alpha Force BR - Development
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
+- .env: `backend/.env` (NODE_ENV=development)
+
+### Alpha Force BR - Production
+- Frontend: `https://alphaforcebr.com`
+- Backend: `https://api.alphaforcebr.com`
+- .env: `backend/.env.production` (NODE_ENV=production)
+
+---
+
+## 🛑 Parar Projeto
+
+Clique em **"Parar"** para encerrar todos os processos de uma vez.
+
+O monitoramento é automaticamente interrompido e as URLs capturadas são limpas.
+
+---
+
+## 🚨 Solução de Problemas
+
+### Ngrok não foi detectado
+
+**Problema**: Cliquei em 🔍 mas nada aconteceu
+
+**Solução**:
+- ✅ Verifique se digitou o comando antes de clicar em 🔍
+- ✅ Comando deve conter `ngrok` ou `cloudflared`
+- ✅ Exemplo válido: `ngrok http 3000`
+
+### URL não foi capturada
+
+**Problema**: Projeto rodou mas URL não apareceu
+
+**Solução**:
+- ✅ Verifique se o ngrok iniciou corretamente no console
+- ✅ Acesse `http://localhost:4040` no navegador para confirmar
+- ✅ Verifique se marcou "Monitorar e capturar URL"
+- ✅ Aguarde até 30 segundos (15 tentativas × 2s)
+
+### .env não foi atualizado
+
+**Problema**: Capturou URL mas .env continua vazio
+
+**Solução**:
+- ✅ Verifique se selecionou o arquivo `.env` na task
+- ✅ Confirme que o arquivo tem permissões de escrita
+- ✅ Veja os logs no console para mensagens de erro
+
+---
+
+## 💡 Dicas Avançadas
+
+### 1. Ordem de Execução
+
+Tasks são executadas simultaneamente, mas você pode usar delays:
+
+```bash
+# Backend primeiro
+cd backend && yarn dev
+
+# Frontend com delay de 5s
+sleep 5 && cd frontend && yarn dev
+```
+
+### 2. Múltiplas Portas no Ngrok
+
+Para expor múltiplas portas:
+
+```bash
+# Task 1: Ngrok Backend
+ngrok http 3000
+
+# Task 2: Ngrok Frontend
+ngrok http 5173
+```
+
+### 3. Transformações Personalizadas
+
+Configure transformações diferentes:
+
+- **Webhook**: `{{url}}/v1/webhook`
+- **API**: `{{url}}/api`
+- **Sem sufixo**: `{{url}}`
+
+### 4. Variáveis Específicas
+
+Configure diferentes variáveis por serviço:
+
+- **Backend**: `API_URL` → URL do ngrok backend
+- **Frontend**: `VITE_API_URL` → URL do ngrok backend
+
+---
+
+## 📚 Próximos Passos
+
+Agora que você criou seu primeiro projeto:
+
+- ✅ Adicione mais tasks (Redis, MeiliSearch, etc.)
+- ✅ Configure monitoramento para cloudflared
+- ✅ Crie projetos para diferentes ambientes
+- ✅ Experimente com transformações de URL personalizadas
+
+---
+
+## ❓ Mais Ajuda
+
+Veja a [Documentação Completa](README.md) para informações detalhadas.
+
+---
+
+**Automatize seu fluxo de desenvolvimento! 🚀**
