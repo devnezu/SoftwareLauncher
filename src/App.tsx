@@ -40,6 +40,7 @@ function App() {
   const [formTasks, setFormTasks] = useState([])
 
   const [envVariables, setEnvVariables] = useState({})
+  const [capturedUrls, setCapturedUrls] = useState({})
 
   useEffect(() => {
     loadProjects()
@@ -63,12 +64,22 @@ function App() {
         addConsoleOutput(data.projectId, 'system', `${t('project.processExited')} "${data.taskName}" ${data.code}`, '')
       }
 
+      const handleUrlCaptured = (event, data) => {
+        setCapturedUrls(prev => ({
+          ...prev,
+          [data.service]: data.url
+        }))
+        addConsoleOutput(data.monitorId, 'system', `🔗 ${data.service.toUpperCase()} URL capturada: ${data.url}`, data.monitorId)
+      }
+
       ipcRenderer.on('process-output', handleProcessOutput)
       ipcRenderer.on('process-closed', handleProcessClosed)
+      ipcRenderer.on('url-captured', handleUrlCaptured)
 
       return () => {
         ipcRenderer.removeListener('process-output', handleProcessOutput)
         ipcRenderer.removeListener('process-closed', handleProcessClosed)
+        ipcRenderer.removeListener('url-captured', handleUrlCaptured)
       }
     }
   }, [t])
@@ -193,6 +204,36 @@ function App() {
     }
   }
 
+  async function autoDetectService(index) {
+    if (!ipcRenderer) return
+
+    const task = formTasks[index]
+    if (!task.command) {
+      showAlert(t('form.enterCommandFirst'))
+      return
+    }
+
+    const result = await ipcRenderer.invoke('detect-service', task.command)
+
+    if (result.available && result.config) {
+      updateTask(index, 'monitoring', result.config)
+      showAlert(`✅ ${result.service} detectado!`, 'Monitoramento configurado automaticamente.')
+    } else if (result.warning) {
+      showAlert(`⚠️ ${result.service || 'Serviço'} detectado`, result.warning)
+    } else {
+      showAlert(t('form.serviceNotDetected'))
+    }
+  }
+
+  function updateTaskMonitoring(index, field, value) {
+    const newTasks = [...formTasks]
+    if (!newTasks[index].monitoring) {
+      newTasks[index].monitoring = {}
+    }
+    newTasks[index].monitoring[field] = value
+    setFormTasks(newTasks)
+  }
+
   function saveProject() {
     if (!formName.trim()) {
       showAlert(t('form.enterProjectName'))
@@ -244,6 +285,8 @@ function App() {
   async function launchProject() {
     if (!currentProject || !ipcRenderer) return
 
+    setCapturedUrls({}) // Limpar URLs anteriores
+
     // Inicializar console do projeto se não existir
     if (!projectConsoles[currentProject.id]) {
       setProjectConsoles(prev => ({
@@ -289,6 +332,7 @@ function App() {
       const newRunning = new Set(runningProjects)
       newRunning.delete(currentProject.id)
       setRunningProjects(newRunning)
+      setCapturedUrls({}) // Limpar URLs capturadas
       addConsoleOutput(currentProject.id, 'system', t('project.stopped'), '')
     } else {
       addConsoleOutput(currentProject.id, 'error', `${t('project.failedToStop')}: ${result.error}`, '')

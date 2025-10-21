@@ -98,6 +98,8 @@ export const translations = {
       enterProjectName: 'Por favor, insira um nome para o projeto',
       selectEnvFirst: 'Por favor, selecione um arquivo .env primeiro',
       errorParsingEnv: 'Erro ao analisar arquivo .env',
+      enterCommandFirst: 'Digite o comando primeiro',
+      serviceNotDetected: 'Nenhum serviço reconhecido detectado',
     },
     envConfig: {
       variable: 'Variável',
@@ -216,6 +218,8 @@ export const translations = {
       enterProjectName: 'Please enter a project name',
       selectEnvFirst: 'Please select an .env file first',
       errorParsingEnv: 'Error parsing .env file',
+      enterCommandFirst: 'Enter command first',
+      serviceNotDetected: 'No recognized service detected',
     },
     envConfig: {
       variable: 'Variable',
