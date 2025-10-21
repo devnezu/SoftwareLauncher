@@ -484,6 +484,11 @@ function App() {
                           <div className="flex items-center gap-2 mb-2">
                             {isRunning && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                             <h4 className="font-medium text-sm">{task.name}</h4>
+                            {task.monitoring?.enabled && (
+                              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                🔍 {task.monitoring.type}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground space-y-1">
                             <div className="font-mono truncate">$ {task.command}</div>
@@ -503,6 +508,39 @@ function App() {
                     </div>
                   )}
                 </div>
+
+                {isRunning && Object.keys(capturedUrls).length > 0 && (
+                  <div className="p-6 border-b border-border">
+                    <h3 className="text-sm font-semibold mb-3">🔗 URLs Capturadas</h3>
+                    <div className="space-y-2">
+                      {Object.entries(capturedUrls).map(([service, url]) => (
+                        <div key={service} className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-emerald-400 mb-1 uppercase">
+                                {service}
+                              </div>
+                              <div className="font-mono text-xs text-foreground truncate">
+                                {url}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                navigator.clipboard.writeText(url)
+                                // Opcional: mostrar feedback visual
+                              }}
+                              className="text-emerald-400 hover:text-emerald-300 shrink-0"
+                            >
+                              {t('buttons.copy')}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex-1 flex flex-col min-h-0">
                   <div className="px-6 py-3 border-b border-border flex justify-between items-center">
@@ -625,11 +663,23 @@ function App() {
                       </Button>
                     </div>
 
-                    <Input
-                      value={task.command}
-                      onChange={(e) => updateTask(index, 'command', e.target.value)}
-                      placeholder={t('form.commandPlaceholder')}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        value={task.command}
+                        onChange={(e) => updateTask(index, 'command', e.target.value)}
+                        placeholder={t('form.commandPlaceholder')}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        onClick={() => autoDetectService(index)}
+                        title="Detectar serviço automaticamente (ngrok, cloudflared)"
+                      >
+                        🔍
+                      </Button>
+                    </div>
 
                     <div>
                       <label className="text-xs text-muted-foreground mb-1.5 block font-light">
@@ -716,6 +766,29 @@ function App() {
                         </Button>
                       )}
                     </div>
+
+                    {task.monitoring?.config && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg space-y-2 mt-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={task.monitoring.enabled || false}
+                            onChange={(e) => updateTaskMonitoring(index, 'enabled', e.target.checked)}
+                            className="rounded accent-emerald-500"
+                          />
+                          <span className="text-sm font-medium text-emerald-400">
+                            Monitorar <strong>{task.monitoring.type}</strong> e capturar URL
+                          </span>
+                        </label>
+                        {task.monitoring.enabled && (
+                          <div className="text-xs text-muted-foreground space-y-1 pl-6">
+                            <div>📡 API: <code className="bg-black/20 px-1 rounded">{task.monitoring.apiUrl}</code></div>
+                            <div>📝 Atualizar variável: <code className="bg-black/20 px-1 rounded">{task.monitoring.envVarToUpdate}</code></div>
+                            <div>⏱️ Timeout: {task.monitoring.timeout?.maxAttempts || 15}x de {(task.monitoring.timeout?.intervalMs || 2000) / 1000}s</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {formTasks.length === 0 && (
