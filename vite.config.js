@@ -15,6 +15,25 @@ export default defineConfig(({ command }) => ({
         entry: 'electron/main.js',
         vite: {
           build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron']
+            }
+          }
+        }
+      },
+      {
+        entry: 'electron/serviceMonitor.js',
+        vite: {
+          build: {
+            outDir: 'dist-electron'
+          }
+        }
+      },
+      {
+        entry: 'electron/serviceDetector.js',
+        vite: {
+          build: {
             outDir: 'dist-electron'
           }
         }

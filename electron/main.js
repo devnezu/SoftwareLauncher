@@ -2,8 +2,11 @@ const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const { spawn } = require('child_process');
+const ServiceMonitor = require('./serviceMonitor');
+const ServiceDetector = require('./serviceDetector');
 
 let mainWindow;
+let serviceMonitor;
 const configPath = path.join(app.getPath('userData'), 'projects.json');
 
 const runningProcesses = new Map();
@@ -28,6 +31,9 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
+
+  // Inicializar ServiceMonitor
+  serviceMonitor = new ServiceMonitor(mainWindow);
 
   if (isDev) {
     // Usa a URL do servidor de desenvolvimento fornecida pelo vite-plugin-electron
@@ -260,6 +266,16 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
 
     runningProcesses.set(project.id, projectProcesses);
 
+    // Iniciar monitoramento de serviços (ngrok, cloudflared, etc)
+    // Pequeno delay para garantir que processos iniciaram
+    setTimeout(() => {
+      for (const task of project.tasks) {
+        if (task.monitoring?.enabled) {
+          serviceMonitor.startMonitoring(project.id, task, environment);
+        }
+      }
+    }, 1000);
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -284,8 +300,37 @@ ipcMain.handle('stop-project', async (event, projectId) => {
       runningProcesses.delete(projectId);
     }
 
+    // Parar monitores de serviços deste projeto
+    if (serviceMonitor) {
+      serviceMonitor.stopProjectMonitors(projectId);
+    }
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+// Handler para detectar serviços automaticamente (ngrok, cloudflared, etc)
+ipcMain.handle('detect-service', async (event, command) => {
+  try {
+    const result = await ServiceDetector.detectMonitoring(command);
+    return result;
+  } catch (error) {
+    return {
+      available: false,
+      service: null,
+      config: null,
+      error: error.message
+    };
+  }
+});
+
+// Handler para obter lista de serviços suportados
+ipcMain.handle('get-supported-services', async () => {
+  try {
+    return ServiceDetector.getSupportedServices();
+  } catch (error) {
+    return [];
   }
 });
