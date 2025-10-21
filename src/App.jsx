@@ -10,6 +10,8 @@ import { Breadcrumb } from './components/Breadcrumb'
 import { Loading } from './components/Loading'
 import { Home } from './components/Home'
 import { Sidebar } from './components/Sidebar'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { AlertDialog } from './components/AlertDialog'
 import { useTranslation } from './i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
@@ -28,6 +30,8 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentEnvironment, setCurrentEnvironment] = useState('development')
   const [copied, setCopied] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [alertDialog, setAlertDialog] = useState({ open: false, title: '', description: '' })
 
   const processedOutputsRef = useRef(new Set())
 
@@ -69,6 +73,10 @@ function App() {
     }
   }, [t])
 
+  function showAlert(title, description = '') {
+    setAlertDialog({ open: true, title, description })
+  }
+
   async function loadProjects() {
     if (!ipcRenderer) {
       setLoading(false)
@@ -106,7 +114,7 @@ function App() {
     const task = formTasks[taskIndex]
 
     if (!task.envFilePath) {
-      alert(t('form.selectEnvFirst'))
+      showAlert(t('form.selectEnvFirst'))
       return
     }
 
@@ -127,7 +135,7 @@ function App() {
       setEditingTaskIndex(taskIndex)
       setEnvModalOpen(true)
     } else {
-      alert(`${t('form.errorParsingEnv')}: ${result.error}`)
+      showAlert(t('form.errorParsingEnv'), result.error)
     }
   }
 
@@ -154,7 +162,8 @@ function App() {
       command: '',
       workingDirectory: '',
       envFilePath: '',
-      envVariables: {}
+      envVariables: {},
+      environments: ['development', 'production'] // Executar em ambos por padrão
     }])
   }
 
@@ -186,7 +195,7 @@ function App() {
 
   function saveProject() {
     if (!formName.trim()) {
-      alert(t('form.enterProjectName'))
+      showAlert(t('form.enterProjectName'))
       return
     }
 
@@ -215,7 +224,11 @@ function App() {
 
   function deleteProject() {
     if (!currentProject) return
-    if (!confirm(`${t('project.deleteConfirm')} "${currentProject.name}"?`)) return
+    setConfirmDelete(true)
+  }
+
+  function confirmDeleteProject() {
+    if (!currentProject) return
 
     if (runningProjects.has(currentProject.id)) {
       stopProject()
@@ -225,15 +238,33 @@ function App() {
     setProjects(newProjects)
     saveProjects(newProjects)
     setCurrentProject(null)
+    goHome()
   }
 
   async function launchProject() {
     if (!currentProject || !ipcRenderer) return
 
     setConsoleOutput([])
+    processedOutputsRef.current.clear()
     addConsoleOutput('system', `${t('project.startingIn')} ${currentEnvironment.toUpperCase()}...`, '')
 
-    const result = await ipcRenderer.invoke('launch-project', currentProject, currentEnvironment)
+    // Filtrar tarefas baseado no ambiente
+    const tasksToRun = currentProject.tasks.filter(task => {
+      // Se a tarefa não tem o campo environments, executar em todos (retrocompatibilidade)
+      if (!task.environments || task.environments.length === 0) {
+        return true
+      }
+      // Verificar se o ambiente atual está na lista de ambientes da tarefa
+      return task.environments.includes(currentEnvironment)
+    })
+
+    if (tasksToRun.length === 0) {
+      addConsoleOutput('system', t('project.noTasksForEnv') || 'Nenhuma tarefa configurada para este ambiente', '')
+      return
+    }
+
+    const filteredProject = { ...currentProject, tasks: tasksToRun }
+    const result = await ipcRenderer.invoke('launch-project', filteredProject, currentEnvironment)
 
     if (result.success) {
       setRunningProjects(new Set([...runningProjects, currentProject.id]))
@@ -444,7 +475,7 @@ function App() {
                     </div>
                   </div>
                   <ScrollArea className="flex-1">
-                    <div className="p-4 font-mono text-xs space-y-1">
+                    <div className="p-4 font-mono text-xs space-y-1 console-content">
                       {consoleOutput.length === 0 ? (
                         <div className="text-muted-foreground text-center py-8">
                           {t('project.noOutput')}
@@ -541,6 +572,50 @@ function App() {
                       onChange={(e) => updateTask(index, 'command', e.target.value)}
                       placeholder={t('form.commandPlaceholder')}
                     />
+
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1.5 block font-light">
+                        {t('form.environment')}
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const envs = task.environments || []
+                            updateTask(index, 'environments', ['development', 'production'])
+                          }}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                            (task.environments || []).includes('development') && (task.environments || []).includes('production')
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          {t('form.environmentBoth')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateTask(index, 'environments', ['development'])}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                            (task.environments || []).includes('development') && !(task.environments || []).includes('production')
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          {t('form.environmentDev')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateTask(index, 'environments', ['production'])}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                            (task.environments || []).includes('production') && !(task.environments || []).includes('development')
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          {t('form.environmentProd')}
+                        </button>
+                      </div>
+                    </div>
 
                     <div className="flex gap-2">
                       <Input
@@ -646,6 +721,25 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={t('project.deleteConfirm')}
+        description={currentProject ? `"${currentProject.name}"` : ''}
+        confirmText={t('buttons.delete')}
+        cancelText={t('buttons.cancel')}
+        onConfirm={confirmDeleteProject}
+        variant="destructive"
+      />
+
+      <AlertDialog
+        open={alertDialog.open}
+        onOpenChange={(open) => setAlertDialog({ ...alertDialog, open })}
+        title={alertDialog.title}
+        description={alertDialog.description}
+        buttonText="OK"
+      />
     </div>
   )
 }

@@ -29,11 +29,63 @@ function FlagIcon({ code, className = "" }) {
   )
 }
 
-export function LanguageSelector() {
+export function LanguageSelector({ compact = false, collapsed = false }) {
   const { language, setLanguage, t } = useTranslation()
   const [open, setOpen] = useState(false)
 
   const currentLang = languages.find(l => l.code === language) || languages[0]
+
+  if (compact) {
+    return (
+      <>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOpen(true)}
+          className="rounded-lg"
+          title={currentLang.name}
+        >
+          <FlagIcon code={currentLang.flagCode} />
+        </Button>
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 font-normal">
+                <Globe className="w-5 h-5" strokeWidth={1.5} />
+                Language / Idioma / 语言
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="grid gap-2">
+              {languages.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => {
+                    setLanguage(lang.code)
+                    setOpen(false)
+                  }}
+                  className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${
+                    language === lang.code
+                      ? 'bg-primary text-primary-foreground border-primary shadow-lg'
+                      : 'bg-card hover:bg-accent border-border'
+                  }`}
+                >
+                  <FlagIcon code={lang.flagCode} className="w-8" />
+                  <div className="flex-1 text-left">
+                    <div className="font-normal">{lang.name}</div>
+                  </div>
+                  {language === lang.code && (
+                    <div className="w-2 h-2 rounded-full bg-current" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    )
+  }
 
   return (
     <>
@@ -74,11 +126,6 @@ export function LanguageSelector() {
                 <FlagIcon code={lang.flagCode} className="w-8" />
                 <div className="flex-1 text-left">
                   <div className="font-normal">{lang.name}</div>
-                  <div className={`text-xs font-light ${
-                    language === lang.code ? 'opacity-80' : 'text-muted-foreground'
-                  }`}>
-                    {t(`languages.${lang.code}`)}
-                  </div>
                 </div>
                 {language === lang.code && (
                   <div className="w-2 h-2 rounded-full bg-current" />

@@ -83,15 +83,16 @@ export function Sidebar({ projects, currentProject, runningProjects, onSelectPro
       </ScrollArea>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border space-y-2">
+      <div className="p-3 border-t border-border">
         {!collapsed ? (
-          <>
+          <div className="flex items-center gap-2">
             <ThemeToggle />
-            <LanguageSelector />
-          </>
+            <LanguageSelector compact />
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <ThemeToggle />
+            <LanguageSelector compact collapsed />
           </div>
         )}
       </div>

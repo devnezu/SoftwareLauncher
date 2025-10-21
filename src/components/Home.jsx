@@ -33,13 +33,13 @@ export function Home({ projects, runningProjects, onSelectProject, onNewProject 
     <div className="flex-1 flex flex-col p-8 overflow-auto">
       <div className="max-w-6xl mx-auto w-full">
         {/* Header */}
-        <div className="mb-12">
+        <div className="mb-12 animate-fade-in">
           <h1 className="text-4xl font-light mb-3">{t('home.welcome')}</h1>
           <p className="text-muted-foreground text-lg font-light">{t('home.subtitle')}</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-slide-in">
           {stats.map((stat, index) => (
             <div
               key={index}
