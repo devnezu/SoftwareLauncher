@@ -11,7 +11,7 @@
 
 ## 📋 Sobre
 
-Software Launcher é uma aplicação desktop moderna e minimalista construída com Electron que permite automatizar completamente o processo de inicialização dos seus projetos de desenvolvimento.
+Software Launcher é uma aplicação desktop moderna e minimalista construída com **Electron + React + shadcn/ui** que permite automatizar completamente o processo de inicialização dos seus projetos de desenvolvimento.
 
 Cansado de abrir múltiplos terminais, navegar para diferentes diretórios e executar comandos repetitivos toda vez que inicia seu projeto? O Software Launcher resolve isso!
 
@@ -21,9 +21,19 @@ Cansado de abrir múltiplos terminais, navegar para diferentes diretórios e exe
 - **Configuração Dinâmica**: Configure quantos projetos quiser, cada um com suas próprias tarefas
 - **Múltiplos Terminais**: Execute comandos em diferentes diretórios ao mesmo tempo
 - **Variáveis de Ambiente**: Configure variáveis de ambiente globais e por tarefa
-- **Interface Minimalista**: Design moderno e limpo, fácil de usar
+- **Interface Moderna**: Design baseado em shadcn/ui com fonte Inter (estilo Anthropic)
 - **Monitoramento em Tempo Real**: Veja a saída de todos os processos em um console unificado
+- **Modo Debug**: Projetos mock pré-carregados para desenvolvimento e testes
 - **Persistência**: Suas configurações são salvas automaticamente
+
+### 🎨 Stack Tecnológica
+
+- **Electron** - Framework desktop cross-platform
+- **React 18** - Interface de usuário moderna
+- **Vite** - Build tool ultrarrápida
+- **shadcn/ui** - Componentes UI de alta qualidade
+- **Tailwind CSS** - Estilização utilitária
+- **Inter Font** - Tipografia moderna similar à Anthropic
 
 ## 🚀 Como Usar
 
@@ -40,10 +50,12 @@ cd software-launcher
 npm install
 ```
 
-3. Execute a aplicação:
+3. Execute a aplicação em modo desenvolvimento:
 ```bash
-npm start
+npm run dev
 ```
+
+> **💡 Modo Debug**: Em desenvolvimento, a aplicação carrega automaticamente 2 projetos mock para você testar sem precisar criar manualmente!
 
 ### Criando Seu Primeiro Projeto
 
