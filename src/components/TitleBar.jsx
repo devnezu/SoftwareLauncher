@@ -1,8 +1,11 @@
 import { Minus, Square, X } from 'lucide-react'
+import { useTranslation } from '../i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
 
 export function TitleBar() {
+  const { t } = useTranslation()
+
   const handleMinimize = () => {
     if (ipcRenderer) {
       ipcRenderer.invoke('window-minimize')
@@ -25,7 +28,7 @@ export function TitleBar() {
     <div className="h-8 bg-card border-b border-border flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' }}>
       <div className="flex items-center gap-2">
         <div className="w-3 h-3 rounded-full bg-primary"></div>
-        <span className="text-xs font-medium">Software Launcher</span>
+        <span className="text-xs font-medium">{t('titleBar.title')}</span>
       </div>
 
       <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' }}>
