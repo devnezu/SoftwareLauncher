@@ -2,7 +2,27 @@ import { AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog'
 import { Button } from './ui/button'
 
-export function ConfirmDialog({ open, onOpenChange, title, description, confirmText, cancelText, onConfirm, variant = 'destructive' }) {
+interface ConfirmDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description?: string
+  confirmText: string
+  cancelText: string
+  onConfirm: () => void
+  variant?: 'destructive' | 'default'
+}
+
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmText,
+  cancelText,
+  onConfirm,
+  variant = 'destructive'
+}: ConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm()
     onOpenChange(false)

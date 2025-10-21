@@ -1,7 +1,15 @@
 import { Play, FolderOpen, Clock, TrendingUp } from 'lucide-react'
 import { useTranslation } from '../i18n/LanguageContext'
+import { Project } from '../types/electron'
 
-export function Home({ projects, runningProjects, onSelectProject, onNewProject }) {
+interface HomeProps {
+  projects: Project[]
+  runningProjects: Set<string>
+  onSelectProject: (project: Project) => void
+  onNewProject: () => void
+}
+
+export function Home({ projects, runningProjects, onSelectProject, onNewProject }: HomeProps) {
   const { t } = useTranslation()
 
   const totalProjects = projects.length

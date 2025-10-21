@@ -1,7 +1,12 @@
 import { Minimize2, Maximize2, X } from 'lucide-react'
 import { useTranslation } from '../i18n/LanguageContext'
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
+interface ElectronWindow extends Window {
+  require?: (module: string) => any
+}
+
+const electronWindow = window as ElectronWindow
+const { ipcRenderer } = electronWindow.require ? electronWindow.require('electron') : { ipcRenderer: null }
 
 export function TitleBar() {
   const { t } = useTranslation()
@@ -25,12 +30,12 @@ export function TitleBar() {
   }
 
   return (
-    <div className="h-9 bg-card border-b border-border flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' }}>
+    <div className="h-9 bg-card border-b border-border flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
       <div className="flex items-center gap-2">
         <span className="text-xs font-light tracking-wide">{t('titleBar.title')}</span>
       </div>
 
-      <div className="flex items-center gap-0.5" style={{ WebkitAppRegion: 'no-drag' }}>
+      <div className="flex items-center gap-0.5" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         <button
           onClick={handleMinimize}
           className="w-10 h-7 flex items-center justify-center hover:bg-accent/50 transition-all duration-150 group"

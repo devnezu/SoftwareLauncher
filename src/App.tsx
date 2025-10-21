@@ -13,39 +13,54 @@ import { Sidebar } from './components/Sidebar'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { AlertDialog } from './components/AlertDialog'
 import { useTranslation } from './i18n/LanguageContext'
+import { Project, Task, ConsoleOutput, EnvVariableConfig } from './types/electron'
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
+interface ElectronWindow extends Window {
+  require?: (module: string) => any
+}
+
+const electronWindow = window as ElectronWindow
+const { ipcRenderer } = electronWindow.require ? electronWindow.require('electron') : { ipcRenderer: null }
+
+type View = 'home' | 'project'
+type Environment = 'development' | 'production'
+
+interface AlertDialogState {
+  open: boolean
+  title: string
+  description: string
+}
 
 function App() {
   const { t } = useTranslation()
-  const [view, setView] = useState('home') // 'home' or 'project'
-  const [projects, setProjects] = useState([])
-  const [currentProject, setCurrentProject] = useState(null)
-  const [runningProjects, setRunningProjects] = useState(new Set())
-  const [projectConsoles, setProjectConsoles] = useState({}) // Logs separadas por projeto
-  const [modalOpen, setModalOpen] = useState(false)
-  const [envModalOpen, setEnvModalOpen] = useState(false)
-  const [editingProject, setEditingProject] = useState(null)
-  const [editingTaskIndex, setEditingTaskIndex] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [currentEnvironment, setCurrentEnvironment] = useState('development')
-  const [copied, setCopied] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [alertDialog, setAlertDialog] = useState({ open: false, title: '', description: '' })
+  const [view, setView] = useState<View>('home')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [currentProject, setCurrentProject] = useState<Project | null>(null)
+  const [runningProjects, setRunningProjects] = useState<Set<string>>(new Set())
+  const [projectConsoles, setProjectConsoles] = useState<Record<string, ConsoleOutput[]>>({})
+  const [modalOpen, setModalOpen] = useState<boolean>(false)
+  const [envModalOpen, setEnvModalOpen] = useState<boolean>(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [editingTaskIndex, setEditingTaskIndex] = useState<number | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [currentEnvironment, setCurrentEnvironment] = useState<Environment>('development')
+  const [copied, setCopied] = useState<boolean>(false)
+  const [confirmDelete, setConfirmDelete] = useState<boolean>(false)
+  const [alertDialog, setAlertDialog] = useState<AlertDialogState>({ open: false, title: '', description: '' })
 
-  const processedOutputsRef = useRef(new Set())
+  const processedOutputsRef = useRef<Set<string>>(new Set())
 
-  const [formName, setFormName] = useState('')
-  const [formDescription, setFormDescription] = useState('')
-  const [formTasks, setFormTasks] = useState([])
+  const [formName, setFormName] = useState<string>('')
+  const [formDescription, setFormDescription] = useState<string>('')
+  const [formTasks, setFormTasks] = useState<Task[]>([])
 
-  const [envVariables, setEnvVariables] = useState({})
+  const [envVariables, setEnvVariables] = useState<Record<string, EnvVariableConfig>>({})
 
   useEffect(() => {
     loadProjects()
 
     if (ipcRenderer) {
-      const handleProcessOutput = (event, data) => {
+      const handleProcessOutput = (_event: any, data: any) => {
         const outputId = `${data.projectId}-${data.taskName}-${data.type}-${data.data}-${Date.now()}`
         if (!processedOutputsRef.current.has(outputId)) {
           processedOutputsRef.current.add(outputId)
@@ -59,7 +74,7 @@ function App() {
         }
       }
 
-      const handleProcessClosed = (event, data) => {
+      const handleProcessClosed = (_event: any, data: any) => {
         addConsoleOutput(data.projectId, 'system', `${t('project.processExited')} "${data.taskName}" ${data.code}`, '')
       }
 
@@ -73,28 +88,28 @@ function App() {
     }
   }, [t])
 
-  function showAlert(title, description = '') {
+  function showAlert(title: string, description: string = ''): void {
     setAlertDialog({ open: true, title, description })
   }
 
-  async function loadProjects() {
+  async function loadProjects(): Promise<void> {
     if (!ipcRenderer) {
       setLoading(false)
       return
     }
 
     setLoading(true)
-    const loadedProjects = await ipcRenderer.invoke('load-projects')
+    const loadedProjects: Project[] = await ipcRenderer.invoke('load-projects')
     setProjects(loadedProjects)
     setLoading(false)
   }
 
-  async function saveProjects(newProjects) {
+  async function saveProjects(newProjects: Project[]): Promise<void> {
     if (!ipcRenderer) return
     await ipcRenderer.invoke('save-projects', newProjects)
   }
 
-  function openNewProjectModal() {
+  function openNewProjectModal(): void {
     setEditingProject(null)
     setFormName('')
     setFormDescription('')
@@ -102,7 +117,7 @@ function App() {
     setModalOpen(true)
   }
 
-  function openEditProjectModal(project) {
+  function openEditProjectModal(project: Project): void {
     setEditingProject(project)
     setFormName(project.name)
     setFormDescription(project.description || '')
@@ -110,7 +125,7 @@ function App() {
     setModalOpen(true)
   }
 
-  async function openEnvConfigModal(taskIndex) {
+  async function openEnvConfigModal(taskIndex: number): Promise<void> {
     const task = formTasks[taskIndex]
 
     if (!task.envFilePath) {
@@ -118,12 +133,12 @@ function App() {
       return
     }
 
-    const result = await ipcRenderer.invoke('parse-env-file', task.envFilePath)
+    const result: any = await ipcRenderer.invoke('parse-env-file', task.envFilePath)
 
     if (result.success) {
       const savedConfig = task.envVariables || {}
 
-      const config = {}
+      const config: Record<string, EnvVariableConfig> = {}
       for (const key of Object.keys(result.variables)) {
         config[key] = savedConfig[key] || {
           development: result.variables[key],
@@ -139,14 +154,15 @@ function App() {
     }
   }
 
-  function saveEnvConfig() {
+  function saveEnvConfig(): void {
+    if (editingTaskIndex === null) return
     const newTasks = [...formTasks]
     newTasks[editingTaskIndex].envVariables = envVariables
     setFormTasks(newTasks)
     setEnvModalOpen(false)
   }
 
-  function updateEnvVariable(key, environment, value) {
+  function updateEnvVariable(key: string, environment: string, value: string): void {
     setEnvVariables(prev => ({
       ...prev,
       [key]: {
@@ -156,57 +172,57 @@ function App() {
     }))
   }
 
-  function addTask() {
+  function addTask(): void {
     setFormTasks([...formTasks, {
       name: '',
       command: '',
       workingDirectory: '',
       envFilePath: '',
       envVariables: {},
-      environments: ['development', 'production'] // Executar em ambos por padrão
+      environments: ['development', 'production']
     }])
   }
 
-  function removeTask(index) {
+  function removeTask(index: number): void {
     setFormTasks(formTasks.filter((_, i) => i !== index))
   }
 
-  function updateTask(index, field, value) {
+  function updateTask(index: number, field: keyof Task, value: any): void {
     const newTasks = [...formTasks]
-    newTasks[index][field] = value
+    newTasks[index] = { ...newTasks[index], [field]: value }
     setFormTasks(newTasks)
   }
 
-  async function selectDirectory(index) {
+  async function selectDirectory(index: number): Promise<void> {
     if (!ipcRenderer) return
-    const directory = await ipcRenderer.invoke('select-directory')
+    const directory: string = await ipcRenderer.invoke('select-directory')
     if (directory) {
       updateTask(index, 'workingDirectory', directory)
     }
   }
 
-  async function selectEnvFile(index) {
+  async function selectEnvFile(index: number): Promise<void> {
     if (!ipcRenderer) return
-    const filePath = await ipcRenderer.invoke('select-env-file')
+    const filePath: string = await ipcRenderer.invoke('select-env-file')
     if (filePath) {
       updateTask(index, 'envFilePath', filePath)
     }
   }
 
-  function saveProject() {
+  function saveProject(): void {
     if (!formName.trim()) {
       showAlert(t('form.enterProjectName'))
       return
     }
 
-    const project = {
+    const project: Project = {
       id: editingProject?.id || `proj-${Date.now()}`,
       name: formName.trim(),
       description: formDescription.trim(),
       tasks: formTasks.filter(t => t.name && t.command && t.workingDirectory)
     }
 
-    let newProjects
+    let newProjects: Project[]
     if (editingProject) {
       newProjects = projects.map(p => p.id === editingProject.id ? project : p)
     } else {
@@ -222,12 +238,12 @@ function App() {
     }
   }
 
-  function deleteProject() {
+  function deleteProject(): void {
     if (!currentProject) return
     setConfirmDelete(true)
   }
 
-  function confirmDeleteProject() {
+  function confirmDeleteProject(): void {
     if (!currentProject) return
 
     if (runningProjects.has(currentProject.id)) {
@@ -241,7 +257,7 @@ function App() {
     goHome()
   }
 
-  async function launchProject() {
+  async function launchProject(): Promise<void> {
     if (!currentProject || !ipcRenderer) return
 
     // Inicializar console do projeto se não existir
@@ -269,8 +285,8 @@ function App() {
       return
     }
 
-    const filteredProject = { ...currentProject, tasks: tasksToRun }
-    const result = await ipcRenderer.invoke('launch-project', filteredProject, currentEnvironment)
+    const filteredProject: Project = { ...currentProject, tasks: tasksToRun }
+    const result: any = await ipcRenderer.invoke('launch-project', filteredProject, currentEnvironment)
 
     if (result.success) {
       setRunningProjects(new Set([...runningProjects, currentProject.id]))
@@ -280,10 +296,10 @@ function App() {
     }
   }
 
-  async function stopProject() {
+  async function stopProject(): Promise<void> {
     if (!currentProject || !ipcRenderer) return
 
-    const result = await ipcRenderer.invoke('stop-project', currentProject.id)
+    const result: any = await ipcRenderer.invoke('stop-project', currentProject.id)
 
     if (result.success) {
       const newRunning = new Set(runningProjects)
@@ -295,15 +311,15 @@ function App() {
     }
   }
 
-  function addConsoleOutput(projectId, type, data, taskName) {
+  function addConsoleOutput(projectId: string, type: string, data: string, taskName: string): void {
     const timestamp = new Date().toLocaleTimeString()
     setProjectConsoles(prev => ({
       ...prev,
-      [projectId]: [...(prev[projectId] || []), { type, data, taskName, timestamp }]
+      [projectId]: [...(prev[projectId] || []), { type, data, taskName, timestamp } as ConsoleOutput]
     }))
   }
 
-  function clearConsole() {
+  function clearConsole(): void {
     if (!currentProject) return
     setProjectConsoles(prev => ({
       ...prev,
@@ -311,7 +327,7 @@ function App() {
     }))
   }
 
-  async function copyConsole() {
+  async function copyConsole(): Promise<void> {
     if (!currentProject) return
     const consoleOutput = projectConsoles[currentProject.id] || []
     const text = consoleOutput
@@ -327,17 +343,17 @@ function App() {
     }
   }
 
-  function selectProject(project) {
+  function selectProject(project: Project): void {
     setCurrentProject(project)
     setView('project')
   }
 
-  function goHome() {
+  function goHome(): void {
     setView('home')
     setCurrentProject(null)
   }
 
-  function handleBreadcrumbNav(index) {
+  function handleBreadcrumbNav(index: number): void {
     if (index === 0) {
       goHome()
     }

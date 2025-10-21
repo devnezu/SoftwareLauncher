@@ -17,7 +17,12 @@ const languages = [
   { code: 'zh', name: '中文', flagCode: 'cn' },
 ]
 
-function FlagIcon({ code, className = "" }) {
+interface FlagIconProps {
+  code: string
+  className?: string
+}
+
+function FlagIcon({ code, className = "" }: FlagIconProps) {
   return (
     <img
       src={`https://flagcdn.com/w40/${code}.png`}
@@ -29,8 +34,13 @@ function FlagIcon({ code, className = "" }) {
   )
 }
 
-export function LanguageSelector({ compact = false, collapsed = false }) {
-  const { language, setLanguage, t } = useTranslation()
+interface LanguageSelectorProps {
+  compact?: boolean
+  collapsed?: boolean
+}
+
+export function LanguageSelector({ compact = false, collapsed = false }: LanguageSelectorProps) {
+  const { language, setLanguage } = useTranslation()
   const [open, setOpen] = useState(false)
 
   const currentLang = languages.find(l => l.code === language) || languages[0]

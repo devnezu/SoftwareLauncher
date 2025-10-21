@@ -5,8 +5,17 @@ import { ScrollArea } from './ui/scroll-area'
 import { LanguageSelector } from './LanguageSelector'
 import { ThemeToggle } from './ThemeToggle'
 import { useTranslation } from '../i18n/LanguageContext'
+import { Project } from '../types/electron'
 
-export function Sidebar({ projects, currentProject, runningProjects, onSelectProject, onNewProject }) {
+interface SidebarProps {
+  projects: Project[]
+  currentProject: Project | null
+  runningProjects: Set<string>
+  onSelectProject: (project: Project) => void
+  onNewProject: () => void
+}
+
+export function Sidebar({ projects, currentProject, runningProjects, onSelectProject, onNewProject }: SidebarProps) {
   const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
 
