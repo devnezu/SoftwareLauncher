@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check } from 'lucide-react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
