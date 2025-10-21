@@ -6,10 +6,8 @@ const { spawn } = require('child_process');
 let mainWindow;
 const configPath = path.join(app.getPath('userData'), 'projects.json');
 
-// Armazena os processos em execução
 const runningProcesses = new Map();
 
-// Detecta se está em modo desenvolvimento
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
 function createWindow() {
@@ -24,19 +22,16 @@ function createWindow() {
       webSecurity: false
     },
     backgroundColor: '#0a0a0a',
-    frame: false, // Custom title bar
+    frame: false,
     titleBarStyle: 'hidden',
     icon: path.join(__dirname, '../assets', 'icon.png')
   });
 
-  // Remove o menu padrão
   Menu.setApplicationMenu(null);
 
-  // Em desenvolvimento, carrega do servidor Vite
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    // Em produção, carrega do build
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }
@@ -44,7 +39,6 @@ function createWindow() {
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
-  // Encerra todos os processos em execução
   runningProcesses.forEach((processes, projectId) => {
     processes.forEach(proc => {
       if (proc && !proc.killed) {
@@ -64,9 +58,6 @@ app.on('activate', () => {
   }
 });
 
-// IPC Handlers
-
-// Window controls
 ipcMain.handle('window-minimize', () => {
   mainWindow.minimize();
 });
@@ -83,7 +74,6 @@ ipcMain.handle('window-close', () => {
   mainWindow.close();
 });
 
-// Carregar projetos salvos
 ipcMain.handle('load-projects', async () => {
   try {
     const data = await fs.readFile(configPath, 'utf-8');
@@ -93,7 +83,6 @@ ipcMain.handle('load-projects', async () => {
   }
 });
 
-// Salvar projetos
 ipcMain.handle('save-projects', async (event, projects) => {
   try {
     await fs.writeFile(configPath, JSON.stringify(projects, null, 2));
@@ -103,7 +92,6 @@ ipcMain.handle('save-projects', async (event, projects) => {
   }
 });
 
-// Selecionar diretório
 ipcMain.handle('select-directory', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory']
@@ -116,7 +104,6 @@ ipcMain.handle('select-directory', async () => {
   return null;
 });
 
-// Selecionar arquivo .env
 ipcMain.handle('select-env-file', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
@@ -133,7 +120,6 @@ ipcMain.handle('select-env-file', async () => {
   return null;
 });
 
-// Ler e parsear arquivo .env
 ipcMain.handle('parse-env-file', async (event, filePath) => {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
@@ -143,12 +129,10 @@ ipcMain.handle('parse-env-file', async (event, filePath) => {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // Ignora comentários e linhas vazias
       if (!trimmed || trimmed.startsWith('#')) {
         continue;
       }
 
-      // Parse KEY=VALUE
       const equalIndex = trimmed.indexOf('=');
       if (equalIndex > 0) {
         const key = trimmed.substring(0, equalIndex).trim();
@@ -163,15 +147,12 @@ ipcMain.handle('parse-env-file', async (event, filePath) => {
   }
 });
 
-// Escrever arquivo .env
 ipcMain.handle('write-env-file', async (event, filePath, variables) => {
   try {
-    // Lê o arquivo original para preservar comentários e estrutura
     let content = '';
     try {
       content = await fs.readFile(filePath, 'utf-8');
     } catch (e) {
-      // Arquivo não existe, criar do zero
     }
 
     const lines = content.split('\n');
@@ -181,23 +162,19 @@ ipcMain.handle('write-env-file', async (event, filePath, variables) => {
     for (const line of lines) {
       const trimmed = line.trim();
 
-      // Preserva comentários e linhas vazias
       if (!trimmed || trimmed.startsWith('#')) {
         newLines.push(line);
         continue;
       }
 
-      // Parse KEY=VALUE
       const equalIndex = trimmed.indexOf('=');
       if (equalIndex > 0) {
         const key = trimmed.substring(0, equalIndex).trim();
 
         if (variables.hasOwnProperty(key)) {
-          // Atualiza valor
           newLines.push(`${key}=${variables[key]}`);
           updatedKeys.add(key);
         } else {
-          // Mantém linha original
           newLines.push(line);
         }
       } else {
@@ -205,7 +182,6 @@ ipcMain.handle('write-env-file', async (event, filePath, variables) => {
       }
     }
 
-    // Adiciona novas variáveis que não existiam
     for (const [key, value] of Object.entries(variables)) {
       if (!updatedKeys.has(key)) {
         newLines.push(`${key}=${value}`);
@@ -219,18 +195,15 @@ ipcMain.handle('write-env-file', async (event, filePath, variables) => {
   }
 });
 
-// Executar projeto
 ipcMain.handle('launch-project', async (event, project, environment) => {
   try {
     const projectProcesses = [];
 
-    // Primeiro, atualiza todos os .env files de acordo com o ambiente
     for (const task of project.tasks) {
       if (task.envFilePath && task.envVariables) {
         const variablesToWrite = {};
 
         for (const [key, config] of Object.entries(task.envVariables)) {
-          // Usa o valor do ambiente selecionado
           variablesToWrite[key] = config[environment] || config.development || '';
         }
 
@@ -238,16 +211,13 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
       }
     }
 
-    // Aguarda um pouco para garantir que os arquivos foram escritos
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Então inicia os processos
     for (const task of project.tasks) {
       const env = {
         ...process.env
       };
 
-      // Cria o processo
       const childProcess = spawn(task.command, {
         cwd: task.workingDirectory,
         shell: true,
@@ -255,7 +225,6 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
         detached: false
       });
 
-      // Envia saída do processo para o renderer
       childProcess.stdout.on('data', (data) => {
         mainWindow.webContents.send('process-output', {
           projectId: project.id,
@@ -285,7 +254,6 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
       projectProcesses.push(childProcess);
     }
 
-    // Armazena os processos
     runningProcesses.set(project.id, projectProcesses);
 
     return { success: true };
@@ -294,7 +262,6 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
   }
 });
 
-// Parar projeto
 ipcMain.handle('stop-project', async (event, projectId) => {
   try {
     const processes = runningProcesses.get(projectId);
@@ -302,7 +269,6 @@ ipcMain.handle('stop-project', async (event, projectId) => {
     if (processes) {
       processes.forEach(proc => {
         if (proc && !proc.killed) {
-          // No Windows, usa taskkill para matar a árvore de processos
           if (process.platform === 'win32') {
             spawn('taskkill', ['/pid', proc.pid, '/f', '/t']);
           } else {
