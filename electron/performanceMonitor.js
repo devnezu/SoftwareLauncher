@@ -1,13 +1,14 @@
 const pidusage = require('pidusage');
 const fs = require('fs').promises;
 const path = require('path');
-const { app } = require('electron');
+const { app, Notification } = require('electron');
 
 class PerformanceMonitor {
   constructor(mainWindow) {
     this.mainWindow = mainWindow;
     this.monitors = new Map(); // projectId -> { interval, processes }
     this.history = new Map(); // projectId -> array de métricas
+    this.alertCooldowns = new Map(); // Evitar spam de notificações
     this.maxHistorySize = 60; // Guardar últimos 60 pontos (1 min se coleta a cada 1s)
     this.persistenceEnabled = true; // Ativar persistência
     this.persistenceInterval = 60000; // Salvar a cada 60 segundos
@@ -306,10 +307,26 @@ class PerformanceMonitor {
       });
     }
 
-    // Enviar alertas para frontend
+    // Enviar alertas para frontend e notificações desktop
     if (alerts.length > 0) {
       alerts.forEach(alert => {
         this.mainWindow.webContents.send('performance-alert', alert);
+
+        // Notificação desktop com cooldown (1 notificação a cada 5 minutos por tipo)
+        const cooldownKey = `${projectId}-${alert.type}-${alert.level}`;
+        const lastAlert = this.alertCooldowns.get(cooldownKey);
+        const now = Date.now();
+
+        if (!lastAlert || now - lastAlert > 5 * 60 * 1000) { // 5 minutos
+          this.alertCooldowns.set(cooldownKey, now);
+
+          const notification = new Notification({
+            title: `${alert.level === 'critical' ? '🚨' : '⚠️'} ${alert.projectName}`,
+            body: alert.message,
+            urgency: alert.level === 'critical' ? 'critical' : 'normal'
+          });
+          notification.show();
+        }
       });
     }
   }

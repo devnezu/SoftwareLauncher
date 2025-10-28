@@ -1,17 +1,20 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const { spawn } = require('child_process');
 const ServiceMonitor = require('./serviceMonitor');
 const ServiceDetector = require('./serviceDetector');
 const PerformanceMonitor = require('./performanceMonitor');
+const HealthCheckMonitor = require('./healthCheckMonitor');
 
 let mainWindow;
 let serviceMonitor;
 let performanceMonitor;
+let healthCheckMonitor;
 const configPath = path.join(app.getPath('userData'), 'projects.json');
 
 const runningProcesses = new Map();
+const runningProjects = new Map(); // Para armazenar referências completas dos projetos
 
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
@@ -34,9 +37,10 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
 
-  // Inicializar ServiceMonitor e PerformanceMonitor
+  // Inicializar ServiceMonitor, PerformanceMonitor e HealthCheckMonitor
   serviceMonitor = new ServiceMonitor(mainWindow);
   performanceMonitor = new PerformanceMonitor(mainWindow);
+  healthCheckMonitor = new HealthCheckMonitor(mainWindow);
 
   if (isDev) {
     // Usa a URL do servidor de desenvolvimento fornecida pelo vite-plugin-electron
@@ -445,8 +449,20 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
           taskName: task.name,
           code: code
         });
+
+        // Notificação de crash se saiu com erro
+        if (code !== 0 && code !== null) {
+          const notification = new Notification({
+            title: `❌ ${project.name}`,
+            body: `${task.name} encerrou com erro (código ${code})`,
+            urgency: 'critical'
+          });
+          notification.show();
+        }
       });
 
+      // Armazenar referência do processo com nome da task
+      childProcess.taskName = task.name;
       projectProcesses.push(childProcess);
     }
 
@@ -456,6 +472,7 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
     }
 
     runningProcesses.set(project.id, projectProcesses);
+    runningProjects.set(project.id, { project, environment }); // Armazenar para auto-restart
 
     // Iniciar monitoramento de serviços (ngrok, cloudflared, etc)
     // Pequeno delay para garantir que processos iniciaram
@@ -473,6 +490,26 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
         performanceMonitor.startMonitoring(project.id, projectProcesses, project.name);
       }, 2000);
     }
+
+    // Iniciar health checks para tasks configuradas
+    if (healthCheckMonitor) {
+      setTimeout(() => {
+        project.tasks.forEach((task, index) => {
+          if (task.healthCheck?.enabled && (task.executionMode || 'internal') === 'internal') {
+            const processRef = projectProcesses.find(p => p.taskName === task.name);
+            healthCheckMonitor.startHealthCheck(project.id, project.name, task, processRef);
+          }
+        });
+      }, 3000); // Aguardar 3s para serviços iniciarem
+    }
+
+    // Notificação de sucesso
+    const notification = new Notification({
+      title: `✅ ${project.name}`,
+      body: `Projeto iniciado em modo ${environment}`,
+      urgency: 'low'
+    });
+    notification.show();
 
     return { success: true };
   } catch (error) {
@@ -626,6 +663,25 @@ ipcMain.handle('stop-project', async (event, projectId) => {
       performanceMonitor.stopMonitoring(projectId);
     }
 
+    // Parar health checks
+    if (healthCheckMonitor) {
+      healthCheckMonitor.stopProjectHealthChecks(projectId);
+    }
+
+    // Limpar referência do projeto
+    const projectInfo = runningProjects.get(projectId);
+    runningProjects.delete(projectId);
+
+    // Notificação de parada
+    if (projectInfo) {
+      const notification = new Notification({
+        title: `⏹️ ${projectInfo.project.name}`,
+        body: 'Projeto parado',
+        urgency: 'low'
+      });
+      notification.show();
+    }
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -695,3 +751,139 @@ ipcMain.handle('get-available-periods', async (event, projectId) => {
     return [];
   }
 });
+
+// ==================== HEALTH CHECKS ====================
+
+// Handler para obter status de health checks
+ipcMain.handle('get-health-status', async (event, projectId) => {
+  try {
+    if (healthCheckMonitor) {
+      return healthCheckMonitor.getProjectStatus(projectId);
+    }
+    return [];
+  } catch (error) {
+    console.error('Erro ao obter health status:', error.message);
+    return [];
+  }
+});
+
+// Handler para obter histórico de eventos de health
+ipcMain.handle('get-health-history', async (event, projectId) => {
+  try {
+    if (healthCheckMonitor) {
+      return healthCheckMonitor.getHistory(projectId);
+    }
+    return [];
+  } catch (error) {
+    console.error('Erro ao obter health history:', error.message);
+    return [];
+  }
+});
+
+// Handler para restart manual de uma task
+ipcMain.handle('restart-task', async (event, projectId, taskName) => {
+  try {
+    const projectInfo = runningProjects.get(projectId);
+    if (!projectInfo) {
+      return { success: false, error: 'Projeto não está em execução' };
+    }
+
+    const { project, environment } = projectInfo;
+    const task = project.tasks.find(t => t.name === taskName);
+
+    if (!task) {
+      return { success: false, error: 'Task não encontrada' };
+    }
+
+    // Parar processo atual
+    const processes = runningProcesses.get(projectId);
+    if (processes) {
+      const proc = processes.find(p => p.taskName === taskName);
+      if (proc && !proc.killed) {
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/pid', proc.pid, '/f', '/t']);
+        } else {
+          proc.kill();
+        }
+        // Remover da lista
+        const index = processes.indexOf(proc);
+        if (index > -1) {
+          processes.splice(index, 1);
+        }
+      }
+    }
+
+    // Aguardar um pouco para processo terminar
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Reiniciar processo
+    const env = { ...process.env };
+    const childProcess = spawn(task.command, {
+      cwd: task.workingDirectory,
+      shell: true,
+      env: env,
+      detached: false
+    });
+
+    childProcess.stdout.on('data', (data) => {
+      mainWindow.webContents.send('process-output', {
+        projectId: project.id,
+        taskName: task.name,
+        type: 'stdout',
+        data: data.toString()
+      });
+    });
+
+    childProcess.stderr.on('data', (data) => {
+      mainWindow.webContents.send('process-output', {
+        projectId: project.id,
+        taskName: task.name,
+        type: 'stderr',
+        data: data.toString()
+      });
+    });
+
+    childProcess.on('close', (code) => {
+      mainWindow.webContents.send('process-closed', {
+        projectId: project.id,
+        taskName: task.name,
+        code: code
+      });
+
+      if (code !== 0 && code !== null) {
+        const notification = new Notification({
+          title: `❌ ${project.name}`,
+          body: `${task.name} encerrou com erro (código ${code})`,
+          urgency: 'critical'
+        });
+        notification.show();
+      }
+    });
+
+    childProcess.taskName = task.name;
+    processes.push(childProcess);
+
+    // Reiniciar health check
+    if (task.healthCheck?.enabled && healthCheckMonitor) {
+      setTimeout(() => {
+        healthCheckMonitor.stopHealthCheck(projectId, task.name);
+        healthCheckMonitor.startHealthCheck(project.id, project.name, task, childProcess);
+      }, 2000);
+    }
+
+    // Notificação de restart
+    const notification = new Notification({
+      title: `🔄 ${project.name}`,
+      body: `${taskName} reiniciado`,
+      urgency: 'low'
+    });
+    notification.show();
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao reiniciar task:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== END HEALTH CHECKS ====================

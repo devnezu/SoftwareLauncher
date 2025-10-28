@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp, AlertTriangle, Link, Search, CheckCircle, Timer, ListOrdered, Eye, Monitor } from 'lucide-react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp, AlertTriangle, Link, Search, CheckCircle, Timer, ListOrdered, Eye, Monitor, HeartPulse, RotateCw } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -13,6 +13,7 @@ import { Sidebar } from './components/Sidebar'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { AlertDialog } from './components/AlertDialog'
 import { PerformancePanel } from './components/PerformancePanel'
+import { HealthCheckPanel } from './components/HealthCheckPanel'
 import { AnsiText } from './components/AnsiText'
 import { useTranslation } from './i18n/LanguageContext'
 
@@ -91,14 +92,29 @@ function App() {
         addConsoleOutput(data.monitorId, 'system', `[${data.service.toUpperCase()}] URL capturada: ${data.url}`, data.monitorId)
       }
 
+      const handleHealthCheckRestart = async (event, data) => {
+        // Health check detectou falha e solicitou restart
+        addConsoleOutput(data.projectId, 'system', `[Health Check] Auto-restart solicitado para ${data.taskName}`, '')
+
+        // Chamar função de restart
+        const result = await ipcRenderer.invoke('restart-task', data.projectId, data.taskName)
+        if (result.success) {
+          addConsoleOutput(data.projectId, 'system', `[Health Check] ${data.taskName} reiniciado com sucesso`, '')
+        } else {
+          addConsoleOutput(data.projectId, 'error', `[Health Check] Falha ao reiniciar ${data.taskName}: ${result.error}`, '')
+        }
+      }
+
       ipcRenderer.on('process-output', handleProcessOutput)
       ipcRenderer.on('process-closed', handleProcessClosed)
       ipcRenderer.on('url-captured', handleUrlCaptured)
+      ipcRenderer.on('health-check-restart-required', handleHealthCheckRestart)
 
       return () => {
         ipcRenderer.removeListener('process-output', handleProcessOutput)
         ipcRenderer.removeListener('process-closed', handleProcessClosed)
         ipcRenderer.removeListener('url-captured', handleUrlCaptured)
+        ipcRenderer.removeListener('health-check-restart-required', handleHealthCheckRestart)
       }
     }
   }, [t])
@@ -646,6 +662,13 @@ function App() {
                   />
                 )}
 
+                {/* Health Check Panel - só mostra se tiver health checks configurados */}
+                <HealthCheckPanel
+                  projectId={currentProject.id}
+                  projectName={currentProject.name}
+                  isRunning={isRunning}
+                />
+
                 <div className="flex-1 flex flex-col min-h-0">
                   <div className="px-6 py-3 border-b border-border flex justify-between items-center">
                     <h3 className="text-sm font-normal">{t('project.console')}</h3>
@@ -989,6 +1012,116 @@ function App() {
                             <div className="flex items-center gap-1.5">
                               <Timer className="w-3 h-3" />
                               Timeout: {task.monitoring.timeout?.maxAttempts || 15}x de {(task.monitoring.timeout?.intervalMs || 2000) / 1000}s
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Health Check Configuration */}
+                    {(task.executionMode || 'internal') === 'internal' && (
+                      <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg space-y-3 mt-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={task.healthCheck?.enabled || false}
+                            onChange={(e) => {
+                              const newTasks = [...formTasks]
+                              if (!newTasks[index].healthCheck) {
+                                newTasks[index].healthCheck = {
+                                  enabled: e.target.checked,
+                                  url: '',
+                                  interval: 30000,
+                                  timeout: 5000,
+                                  retries: 3,
+                                  autoRestart: true
+                                }
+                              } else {
+                                newTasks[index].healthCheck.enabled = e.target.checked
+                              }
+                              setFormTasks(newTasks)
+                            }}
+                            className="rounded accent-blue-500"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <HeartPulse className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-medium text-blue-400">
+                              Health Check
+                            </span>
+                          </div>
+                        </label>
+                        {task.healthCheck?.enabled && (
+                          <div className="space-y-2 pl-6">
+                            <div>
+                              <label className="text-xs text-muted-foreground">URL para verificar</label>
+                              <Input
+                                value={task.healthCheck.url || ''}
+                                onChange={(e) => {
+                                  const newTasks = [...formTasks]
+                                  newTasks[index].healthCheck.url = e.target.value
+                                  setFormTasks(newTasks)
+                                }}
+                                placeholder="http://localhost:3000/health"
+                                className="mt-1 text-xs h-8"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-muted-foreground">Intervalo (ms)</label>
+                                <Input
+                                  type="number"
+                                  value={task.healthCheck.interval || 30000}
+                                  onChange={(e) => {
+                                    const newTasks = [...formTasks]
+                                    newTasks[index].healthCheck.interval = parseInt(e.target.value)
+                                    setFormTasks(newTasks)
+                                  }}
+                                  className="mt-1 text-xs h-8"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground">Timeout (ms)</label>
+                                <Input
+                                  type="number"
+                                  value={task.healthCheck.timeout || 5000}
+                                  onChange={(e) => {
+                                    const newTasks = [...formTasks]
+                                    newTasks[index].healthCheck.timeout = parseInt(e.target.value)
+                                    setFormTasks(newTasks)
+                                  }}
+                                  className="mt-1 text-xs h-8"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-muted-foreground">Tentativas</label>
+                                <Input
+                                  type="number"
+                                  value={task.healthCheck.retries || 3}
+                                  onChange={(e) => {
+                                    const newTasks = [...formTasks]
+                                    newTasks[index].healthCheck.retries = parseInt(e.target.value)
+                                    setFormTasks(newTasks)
+                                  }}
+                                  className="mt-1 text-xs h-8"
+                                />
+                              </div>
+                              <div className="flex items-end">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={task.healthCheck.autoRestart !== false}
+                                    onChange={(e) => {
+                                      const newTasks = [...formTasks]
+                                      newTasks[index].healthCheck.autoRestart = e.target.checked
+                                      setFormTasks(newTasks)
+                                    }}
+                                    className="rounded accent-blue-500"
+                                  />
+                                  <span className="text-xs text-blue-400">Auto-restart</span>
+                                </label>
+                              </div>
                             </div>
                           </div>
                         )}

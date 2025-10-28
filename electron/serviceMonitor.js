@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs').promises;
+const { Notification } = require('electron');
 
 class ServiceMonitor {
   constructor(mainWindow) {
@@ -64,6 +65,14 @@ class ServiceMonitor {
             url: finalUrl,
             envVar: envVarToUpdate
           });
+
+          // Notificação desktop
+          const notification = new Notification({
+            title: `🔗 ${type.toUpperCase()} URL Capturada`,
+            body: finalUrl,
+            urgency: 'normal'
+          });
+          notification.show();
 
           // Remover da lista de monitores ativos
           this.activeMonitors.delete(monitorId);
