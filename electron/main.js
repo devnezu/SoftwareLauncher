@@ -44,7 +44,14 @@ function createWindow() {
   serviceMonitor = new ServiceMonitor(mainWindow);
   performanceMonitor = new PerformanceMonitor(mainWindow);
   healthCheckMonitor = new HealthCheckMonitor(mainWindow);
-  geminiService = new GeminiService(process.env.GEMINI_API_KEY || 'AIzaSyBGSRBXV7wCVeOwX-zV5ww1oZ8ALQe1iOQ');
+
+  // Inicializar Gemini Service se API key estiver configurada
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (geminiApiKey) {
+    geminiService = new GeminiService(geminiApiKey);
+  } else {
+    console.warn('GEMINI_API_KEY not configured. AI analysis will not be available.');
+  }
 
   if (isDev) {
     // Usa a URL do servidor de desenvolvimento fornecida pelo vite-plugin-electron
