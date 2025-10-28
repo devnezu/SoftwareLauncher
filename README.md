@@ -24,7 +24,8 @@ Software Launcher é uma aplicação desktop que automatiza a inicialização de
 - **Seleção de Arquivos .env**: Carregue variáveis de ambiente de arquivos específicos
 - **Interface Moderna**: Design responsivo com tema escuro/claro
 - **Persistência Local**: Configurações salvas automaticamente
-- **Multi-idioma**: Suporte para PT-BR e EN
+- **Multi-idioma**: Suporte para PT-BR, EN, ES, FR e ZH
+- **Análise IA com Gemini**: Configure sua própria API Key e analise projetos automaticamente
 
 ### 🎯 Sistema de Monitoramento
 
@@ -146,6 +147,16 @@ Projeto: Sistema de Microserviços
 ```
 
 ## ⚙️ Configuração
+
+### Gemini API Key (Análise de Projetos com IA)
+
+Para usar a análise automática de projetos com IA:
+
+1. Clique no ícone de **Configurações** (⚙️) na sidebar
+2. Cole sua [Gemini API Key gratuita](https://makersuite.google.com/app/apikey)
+3. Clique em **Salvar**
+
+A API Key é armazenada localmente no seu navegador e nunca é enviada para servidores externos (apenas para a API do Google Gemini).
 
 ### Variáveis de Ambiente
 

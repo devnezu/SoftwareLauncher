@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { LanguageSelector } from './LanguageSelector'
 import { ThemeToggle } from './ThemeToggle'
+import { Settings } from './Settings'
 import { useTranslation } from '../i18n/LanguageContext'
 
 export function Sidebar({ projects, currentProject, runningProjects, onSelectProject, onNewProject }) {
@@ -86,11 +87,13 @@ export function Sidebar({ projects, currentProject, runningProjects, onSelectPro
       <div className="p-3 border-t border-border">
         {!collapsed ? (
           <div className="flex items-center gap-2">
+            <Settings compact />
             <ThemeToggle />
             <LanguageSelector compact />
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
+            <Settings compact />
             <ThemeToggle />
             <LanguageSelector compact collapsed />
           </div>

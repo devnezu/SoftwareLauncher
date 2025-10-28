@@ -151,6 +151,17 @@ export const translations = {
       analysisError: 'Erro na análise',
       unknownError: 'Erro desconhecido ao analisar projeto',
     },
+    settings: {
+      title: 'Configurações',
+      description: 'Configure as opções do aplicativo',
+      save: 'Salvar',
+      clear: 'Limpar',
+      gemini: {
+        apiKey: 'Gemini API Key',
+        placeholder: 'Cole sua API Key do Google Gemini aqui',
+        help: 'Obtenha sua API Key gratuita em https://makersuite.google.com/app/apikey',
+      },
+    },
   },
   'en': {
     app: {
@@ -304,6 +315,17 @@ export const translations = {
       analysisError: 'Analysis error',
       unknownError: 'Unknown error while analyzing project',
     },
+    settings: {
+      title: 'Settings',
+      description: 'Configure application options',
+      save: 'Save',
+      clear: 'Clear',
+      gemini: {
+        apiKey: 'Gemini API Key',
+        placeholder: 'Paste your Google Gemini API Key here',
+        help: 'Get your free API Key at https://makersuite.google.com/app/apikey',
+      },
+    },
   },
   'zh': {
     app: {
@@ -454,6 +476,17 @@ export const translations = {
       tasksDetected: '个任务已检测',
       analysisError: '分析错误',
       unknownError: '分析项目时发生未知错误',
+    },
+    settings: {
+      title: '设置',
+      description: '配置应用程序选项',
+      save: '保存',
+      clear: '清除',
+      gemini: {
+        apiKey: 'Gemini API 密钥',
+        placeholder: '在此粘贴您的 Google Gemini API 密钥',
+        help: '在 https://makersuite.google.com/app/apikey 获取免费 API 密钥',
+      },
     },
   },
   'fr': {
@@ -606,6 +639,17 @@ export const translations = {
       analysisError: 'Erreur d\'analyse',
       unknownError: 'Erreur inconnue lors de l\'analyse du projet',
     },
+    settings: {
+      title: 'Paramètres',
+      description: 'Configurer les options de l\'application',
+      save: 'Enregistrer',
+      clear: 'Effacer',
+      gemini: {
+        apiKey: 'Clé API Gemini',
+        placeholder: 'Collez votre clé API Google Gemini ici',
+        help: 'Obtenez votre clé API gratuite sur https://makersuite.google.com/app/apikey',
+      },
+    },
   },
   'es': {
     app: {
@@ -756,6 +800,17 @@ export const translations = {
       tasksDetected: 'tareas detectadas',
       analysisError: 'Error de análisis',
       unknownError: 'Error desconocido al analizar proyecto',
+    },
+    settings: {
+      title: 'Configuración',
+      description: 'Configurar opciones de la aplicación',
+      save: 'Guardar',
+      clear: 'Limpiar',
+      gemini: {
+        apiKey: 'Clave API de Gemini',
+        placeholder: 'Pegue su clave API de Google Gemini aquí',
+        help: 'Obtenga su clave API gratuita en https://makersuite.google.com/app/apikey',
+      },
     },
   },
 }

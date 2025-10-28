@@ -45,13 +45,9 @@ function createWindow() {
   performanceMonitor = new PerformanceMonitor(mainWindow);
   healthCheckMonitor = new HealthCheckMonitor(mainWindow);
 
-  // Inicializar Gemini Service se API key estiver configurada
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  if (geminiApiKey) {
-    geminiService = new GeminiService(geminiApiKey);
-  } else {
-    console.warn('GEMINI_API_KEY not configured. AI analysis will not be available.');
-  }
+  // GeminiService será inicializado quando o usuário configurar a API Key através da UI
+  // Não é mais necessário configurar via variável de ambiente
+  geminiService = null;
 
   if (isDev) {
     // Usa a URL do servidor de desenvolvimento fornecida pelo vite-plugin-electron
@@ -941,6 +937,30 @@ ipcMain.handle('select-project-directory', async () => {
   }
 
   return null;
+});
+
+// Handler para configurar/atualizar a Gemini API Key
+ipcMain.handle('set-gemini-api-key', async (event, apiKey) => {
+  try {
+    if (apiKey && apiKey.trim()) {
+      // Inicializa ou atualiza o GeminiService com a nova API key
+      if (geminiService) {
+        geminiService.setApiKey(apiKey.trim());
+      } else {
+        geminiService = new GeminiService(apiKey.trim());
+      }
+      console.log('Gemini API Key configured successfully');
+      return { success: true };
+    } else {
+      // Remove o serviço se a API key for removida
+      geminiService = null;
+      console.log('Gemini API Key removed');
+      return { success: true };
+    }
+  } catch (error) {
+    console.error('Error setting Gemini API Key:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // ==================== END AI PROJECT ANALYSIS ====================
