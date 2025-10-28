@@ -45,6 +45,14 @@ export default defineConfig(({ command }) => ({
             outDir: 'dist-electron'
           }
         }
+      },
+       {
+        entry: 'electron/healthCheckMonitor.js',
+        vite: {
+          build: {
+            outDir: 'dist-electron'
+          }
+        }
       }
     ]),
     renderer()
