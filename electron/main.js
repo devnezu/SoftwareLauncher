@@ -224,44 +224,52 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     for (const task of project.tasks) {
-      const env = {
-        ...process.env
-      };
+      const executionMode = task.executionMode || 'internal';
 
-      const childProcess = spawn(task.command, {
-        cwd: task.workingDirectory,
-        shell: true,
-        env: env,
-        detached: false
-      });
+      if (executionMode === 'external') {
+        // Modo externo: abrir terminal separado
+        launchInExternalTerminal(task, project.id);
+      } else {
+        // Modo interno: console integrado (comportamento atual)
+        const env = {
+          ...process.env
+        };
 
-      childProcess.stdout.on('data', (data) => {
-        mainWindow.webContents.send('process-output', {
-          projectId: project.id,
-          taskName: task.name,
-          type: 'stdout',
-          data: data.toString()
+        const childProcess = spawn(task.command, {
+          cwd: task.workingDirectory,
+          shell: true,
+          env: env,
+          detached: false
         });
-      });
 
-      childProcess.stderr.on('data', (data) => {
-        mainWindow.webContents.send('process-output', {
-          projectId: project.id,
-          taskName: task.name,
-          type: 'stderr',
-          data: data.toString()
+        childProcess.stdout.on('data', (data) => {
+          mainWindow.webContents.send('process-output', {
+            projectId: project.id,
+            taskName: task.name,
+            type: 'stdout',
+            data: data.toString()
+          });
         });
-      });
 
-      childProcess.on('close', (code) => {
-        mainWindow.webContents.send('process-closed', {
-          projectId: project.id,
-          taskName: task.name,
-          code: code
+        childProcess.stderr.on('data', (data) => {
+          mainWindow.webContents.send('process-output', {
+            projectId: project.id,
+            taskName: task.name,
+            type: 'stderr',
+            data: data.toString()
+          });
         });
-      });
 
-      projectProcesses.push(childProcess);
+        childProcess.on('close', (code) => {
+          mainWindow.webContents.send('process-closed', {
+            projectId: project.id,
+            taskName: task.name,
+            code: code
+          });
+        });
+
+        projectProcesses.push(childProcess);
+      }
     }
 
     runningProcesses.set(project.id, projectProcesses);
@@ -281,6 +289,75 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
     return { success: false, error: error.message };
   }
 });
+
+// Função para abrir terminal externo baseado no sistema operacional
+function launchInExternalTerminal(task, projectId) {
+  const { command, workingDirectory, name } = task;
+
+  mainWindow.webContents.send('process-output', {
+    projectId: projectId,
+    taskName: name,
+    type: 'system',
+    data: `🪟 Abrindo terminal externo para: ${name}`
+  });
+
+  if (process.platform === 'win32') {
+    // Windows: usar cmd com /k para manter janela aberta
+    const windowTitle = `SoftwareLauncher - ${name}`;
+    const cmdCommand = `start "${windowTitle}" cmd /k "cd /d "${workingDirectory}" && ${command}"`;
+
+    spawn(cmdCommand, {
+      shell: true,
+      detached: true,
+      stdio: 'ignore'
+    });
+  } else if (process.platform === 'darwin') {
+    // macOS: usar osascript para abrir Terminal.app
+    const script = `
+      tell application "Terminal"
+        activate
+        do script "cd '${workingDirectory}' && ${command}"
+      end tell
+    `;
+
+    spawn('osascript', ['-e', script], {
+      detached: true,
+      stdio: 'ignore'
+    });
+  } else {
+    // Linux: tentar vários emuladores de terminal
+    const terminals = [
+      { cmd: 'gnome-terminal', args: ['--', 'bash', '-c', `cd "${workingDirectory}" && ${command}; exec bash`] },
+      { cmd: 'konsole', args: ['--workdir', workingDirectory, '-e', 'bash', '-c', `${command}; exec bash`] },
+      { cmd: 'xfce4-terminal', args: ['--working-directory', workingDirectory, '-e', `bash -c "${command}; exec bash"`] },
+      { cmd: 'xterm', args: ['-e', `cd "${workingDirectory}" && ${command}; exec bash`] }
+    ];
+
+    let launched = false;
+    for (const terminal of terminals) {
+      try {
+        spawn(terminal.cmd, terminal.args, {
+          detached: true,
+          stdio: 'ignore'
+        });
+        launched = true;
+        break;
+      } catch (err) {
+        // Tentar próximo terminal
+        continue;
+      }
+    }
+
+    if (!launched) {
+      mainWindow.webContents.send('process-output', {
+        projectId: projectId,
+        taskName: name,
+        type: 'stderr',
+        data: '⚠️ Nenhum emulador de terminal encontrado. Instale gnome-terminal, konsole, xfce4-terminal ou xterm.'
+      });
+    }
+  }
+}
 
 ipcMain.handle('stop-project', async (event, projectId) => {
   try {

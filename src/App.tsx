@@ -174,7 +174,8 @@ function App() {
       workingDirectory: '',
       envFilePath: '',
       envVariables: {},
-      environments: ['development', 'production'] // Executar em ambos por padrão
+      environments: ['development', 'production'], // Executar em ambos por padrão
+      executionMode: 'internal' // 'internal' ou 'external'
     }])
   }
 
@@ -489,6 +490,11 @@ function App() {
                                 🔍 {task.monitoring.type}
                               </span>
                             )}
+                            {task.executionMode === 'external' && (
+                              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">
+                                🪟 CMD
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground space-y-1">
                             <div className="font-mono truncate">$ {task.command}</div>
@@ -721,6 +727,36 @@ function App() {
                           }`}
                         >
                           {t('form.environmentProd')}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1.5 block font-light">
+                        {t('form.executionMode') || 'Modo de Execução'}
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateTask(index, 'executionMode', 'internal')}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                            (task.executionMode || 'internal') === 'internal'
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          📟 {t('form.executionModeInternal') || 'Console Interno'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateTask(index, 'executionMode', 'external')}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                            (task.executionMode || 'internal') === 'external'
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:bg-accent'
+                          }`}
+                        >
+                          🪟 {t('form.executionModeExternal') || 'Terminal Externo'}
                         </button>
                       </div>
                     </div>
