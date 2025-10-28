@@ -12,6 +12,7 @@ import { Home } from './components/Home'
 import { Sidebar } from './components/Sidebar'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { AlertDialog } from './components/AlertDialog'
+import { PerformancePanel } from './components/PerformancePanel'
 import { useTranslation } from './i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
@@ -547,6 +548,12 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                <PerformancePanel
+                  projectId={currentProject.id}
+                  projectName={currentProject.name}
+                  isRunning={isRunning}
+                />
 
                 <div className="flex-1 flex flex-col min-h-0">
                   <div className="px-6 py-3 border-b border-border flex justify-between items-center">

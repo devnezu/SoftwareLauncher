@@ -114,6 +114,10 @@ export const translations = {
     loading: {
       projects: 'Carregando projetos...',
     },
+    performance: {
+      notRunning: 'Execute o projeto para ver métricas de performance',
+      loading: 'Carregando métricas...',
+    },
     languages: {
       'pt-BR': 'Português',
       'en': 'English',
@@ -237,6 +241,10 @@ export const translations = {
     loading: {
       projects: 'Loading projects...',
     },
+    performance: {
+      notRunning: 'Run the project to see performance metrics',
+      loading: 'Loading metrics...',
+    },
     languages: {
       'pt-BR': 'Português',
       'en': 'English',
@@ -357,6 +365,10 @@ export const translations = {
     },
     loading: {
       projects: '加载项目中...',
+    },
+    performance: {
+      notRunning: '运行项目以查看性能指标',
+      loading: '加载指标中...',
     },
     languages: {
       'pt-BR': 'Português',
@@ -479,6 +491,10 @@ export const translations = {
     loading: {
       projects: 'Chargement des projets...',
     },
+    performance: {
+      notRunning: 'Exécutez le projet pour voir les métriques de performance',
+      loading: 'Chargement des métriques...',
+    },
     languages: {
       'pt-BR': 'Português',
       'en': 'English',
@@ -599,6 +615,10 @@ export const translations = {
     },
     loading: {
       projects: 'Cargando proyectos...',
+    },
+    performance: {
+      notRunning: 'Ejecuta el proyecto para ver las métricas de rendimiento',
+      loading: 'Cargando métricas...',
     },
     languages: {
       'pt-BR': 'Português',

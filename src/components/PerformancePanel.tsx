@@ -1,0 +1,331 @@
+import { useState, useEffect } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { Activity, Cpu, HardDrive, Clock, AlertTriangle } from 'lucide-react'
+import { useTranslation } from '../i18n/LanguageContext'
+
+const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
+
+interface PerformanceMetrics {
+  projectId: string
+  projectName: string
+  timestamp: number
+  uptime: number
+  cpu: string
+  memory: string
+  processCount: number
+  processes: Array<{
+    pid: number
+    cpu: string
+    memory: string
+    elapsed: number
+  }>
+}
+
+interface PerformanceAlert {
+  type: 'cpu' | 'memory'
+  level: 'warning' | 'critical'
+  message: string
+  projectId: string
+  projectName: string
+}
+
+interface PerformancePanelProps {
+  projectId: string
+  projectName: string
+  isRunning: boolean
+}
+
+export function PerformancePanel({ projectId, projectName, isRunning }: PerformancePanelProps) {
+  const { t } = useTranslation()
+  const [currentMetrics, setCurrentMetrics] = useState<PerformanceMetrics | null>(null)
+  const [history, setHistory] = useState<PerformanceMetrics[]>([])
+  const [alerts, setAlerts] = useState<PerformanceAlert[]>([])
+
+  useEffect(() => {
+    if (!ipcRenderer || !isRunning) return
+
+    // Handler para receber métricas em tempo real
+    const handleMetrics = (event: any, metrics: PerformanceMetrics) => {
+      if (metrics.projectId === projectId) {
+        setCurrentMetrics(metrics)
+        setHistory(prev => {
+          const newHistory = [...prev, metrics]
+          // Manter apenas últimos 60 pontos
+          if (newHistory.length > 60) {
+            return newHistory.slice(-60)
+          }
+          return newHistory
+        })
+      }
+    }
+
+    // Handler para receber alertas
+    const handleAlert = (event: any, alert: PerformanceAlert) => {
+      if (alert.projectId === projectId) {
+        setAlerts(prev => {
+          const newAlerts = [...prev, { ...alert, id: Date.now() }]
+          // Manter apenas últimos 5 alertas
+          if (newAlerts.length > 5) {
+            return newAlerts.slice(-5)
+          }
+          return newAlerts
+        })
+
+        // Remover alerta após 10 segundos
+        setTimeout(() => {
+          setAlerts(prev => prev.filter(a => a !== alert))
+        }, 10000)
+      }
+    }
+
+    ipcRenderer.on('performance-metrics', handleMetrics)
+    ipcRenderer.on('performance-alert', handleAlert)
+
+    // Carregar histórico inicial
+    ipcRenderer.invoke('get-performance-history', projectId).then((historyData: PerformanceMetrics[]) => {
+      if (historyData && historyData.length > 0) {
+        setHistory(historyData)
+        setCurrentMetrics(historyData[historyData.length - 1])
+      }
+    })
+
+    return () => {
+      ipcRenderer.removeListener('performance-metrics', handleMetrics)
+      ipcRenderer.removeListener('performance-alert', handleAlert)
+    }
+  }, [projectId, isRunning])
+
+  // Limpar dados quando projeto para
+  useEffect(() => {
+    if (!isRunning) {
+      setCurrentMetrics(null)
+      setHistory([])
+      setAlerts([])
+    }
+  }, [isRunning])
+
+  if (!isRunning) {
+    return (
+      <div className="p-6 border-b border-border">
+        <div className="text-center text-muted-foreground text-sm">
+          📊 {t('performance.notRunning') || 'Execute o projeto para ver métricas de performance'}
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentMetrics) {
+    return (
+      <div className="p-6 border-b border-border">
+        <div className="text-center text-muted-foreground text-sm">
+          ⏳ {t('performance.loading') || 'Carregando métricas...'}
+        </div>
+      </div>
+    )
+  }
+
+  // Formatar dados para o gráfico
+  const chartData = history.map(m => ({
+    time: new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    cpu: parseFloat(m.cpu),
+    memory: parseFloat(m.memory)
+  }))
+
+  // Formatar uptime
+  const formatUptime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`
+    } else {
+      return `${secs}s`
+    }
+  }
+
+  return (
+    <div className="border-b border-border">
+      {/* Alertas */}
+      {alerts.length > 0 && (
+        <div className="p-4 space-y-2">
+          {alerts.map((alert, index) => (
+            <div
+              key={index}
+              className={`flex items-center gap-2 p-3 rounded-lg border ${
+                alert.level === 'critical'
+                  ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                  : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-sm font-medium">{alert.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Cards de Métricas */}
+      <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-card p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <Cpu className="w-4 h-4" />
+            <span className="text-xs font-medium">CPU</span>
+          </div>
+          <div className="text-2xl font-bold">
+            {currentMetrics.cpu}%
+          </div>
+          <div className={`text-xs mt-1 ${
+            parseFloat(currentMetrics.cpu) > 80 ? 'text-red-400' :
+            parseFloat(currentMetrics.cpu) > 50 ? 'text-yellow-400' :
+            'text-green-400'
+          }`}>
+            {parseFloat(currentMetrics.cpu) > 80 ? '🔴 Alto' :
+             parseFloat(currentMetrics.cpu) > 50 ? '🟡 Médio' :
+             '🟢 Normal'}
+          </div>
+        </div>
+
+        <div className="bg-card p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <HardDrive className="w-4 h-4" />
+            <span className="text-xs font-medium">RAM</span>
+          </div>
+          <div className="text-2xl font-bold">
+            {currentMetrics.memory} MB
+          </div>
+          <div className={`text-xs mt-1 ${
+            parseFloat(currentMetrics.memory) > 500 ? 'text-red-400' :
+            parseFloat(currentMetrics.memory) > 250 ? 'text-yellow-400' :
+            'text-green-400'
+          }`}>
+            {parseFloat(currentMetrics.memory) > 500 ? '🔴 Alto' :
+             parseFloat(currentMetrics.memory) > 250 ? '🟡 Médio' :
+             '🟢 Normal'}
+          </div>
+        </div>
+
+        <div className="bg-card p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <Clock className="w-4 h-4" />
+            <span className="text-xs font-medium">Uptime</span>
+          </div>
+          <div className="text-2xl font-bold">
+            {formatUptime(currentMetrics.uptime)}
+          </div>
+          <div className="text-xs mt-1 text-muted-foreground">
+            Tempo de execução
+          </div>
+        </div>
+
+        <div className="bg-card p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <Activity className="w-4 h-4" />
+            <span className="text-xs font-medium">Processos</span>
+          </div>
+          <div className="text-2xl font-bold">
+            {currentMetrics.processCount}
+          </div>
+          <div className="text-xs mt-1 text-muted-foreground">
+            Tasks ativas
+          </div>
+        </div>
+      </div>
+
+      {/* Gráfico de Performance */}
+      {chartData.length > 1 && (
+        <div className="px-6 pb-6">
+          <h3 className="text-sm font-semibold mb-4">📈 Histórico de Performance</h3>
+
+          <div className="bg-card p-4 rounded-lg border border-border">
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis
+                  dataKey="time"
+                  stroke="#888"
+                  fontSize={10}
+                  tick={{ fill: '#888' }}
+                />
+                <YAxis
+                  stroke="#888"
+                  fontSize={10}
+                  tick={{ fill: '#888' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1a1a1a',
+                    border: '1px solid #333',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="cpu"
+                  stroke="#3b82f6"
+                  fillOpacity={1}
+                  fill="url(#colorCpu)"
+                  name="CPU (%)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="memory"
+                  stroke="#10b981"
+                  fillOpacity={1}
+                  fill="url(#colorMemory)"
+                  name="RAM (MB)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Detalhes dos Processos */}
+      {currentMetrics.processes.length > 0 && (
+        <div className="px-6 pb-6">
+          <h3 className="text-sm font-semibold mb-3">🔍 Processos Individuais</h3>
+          <div className="space-y-2">
+            {currentMetrics.processes.map((proc, index) => (
+              <div key={proc.pid} className="bg-card p-3 rounded-lg border border-border">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-muted-foreground">
+                      PID {proc.pid}
+                    </span>
+                    <span className="text-xs">
+                      Task {index + 1}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">CPU:</span>
+                      <span className="ml-1 font-medium">{proc.cpu}%</span>
+                    </div>
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">RAM:</span>
+                      <span className="ml-1 font-medium">{proc.memory} MB</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
