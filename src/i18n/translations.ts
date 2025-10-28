@@ -51,6 +51,7 @@ export const translations = {
       failedToStop: 'Falha ao parar projeto',
       processExited: 'Processo encerrado com código',
       deleteConfirm: 'Tem certeza que deseja excluir',
+      cannotStopExternalTerminal: 'Não é possível parar processos em terminal externo',
     },
     buttons: {
       newProject: 'Novo Projeto',
@@ -194,6 +195,7 @@ export const translations = {
       failedToStop: 'Failed to stop project',
       processExited: 'Process exited with code',
       deleteConfirm: 'Are you sure you want to delete',
+      cannotStopExternalTerminal: 'Cannot stop processes in external terminal',
     },
     buttons: {
       newProject: 'New Project',
@@ -337,6 +339,7 @@ export const translations = {
       failedToStop: '停止项目失败',
       processExited: '进程退出，代码：',
       deleteConfirm: '确定要删除吗',
+      cannotStopExternalTerminal: '无法停止外部终端中的进程',
     },
     buttons: {
       newProject: '新建项目',
@@ -478,6 +481,7 @@ export const translations = {
       failedToStop: "Échec de l'arrêt du projet",
       processExited: 'Processus terminé avec le code',
       deleteConfirm: 'Êtes-vous sûr de vouloir supprimer',
+      cannotStopExternalTerminal: 'Impossible d\'arrêter les processus dans le terminal externe',
     },
     buttons: {
       newProject: 'Nouveau Projet',
@@ -619,6 +623,7 @@ export const translations = {
       failedToStop: 'Error al detener el proyecto',
       processExited: 'Proceso terminado con código',
       deleteConfirm: '¿Estás seguro de que deseas eliminar',
+      cannotStopExternalTerminal: 'No se pueden detener procesos en terminal externo',
     },
     buttons: {
       newProject: 'Nuevo Proyecto',

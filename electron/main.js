@@ -15,6 +15,7 @@ const configPath = path.join(app.getPath('userData'), 'projects.json');
 
 const runningProcesses = new Map();
 const runningProjects = new Map(); // Para armazenar referências completas dos projetos
+const stoppingProjects = new Set(); // Para rastrear projetos sendo parados manualmente
 
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
@@ -451,7 +452,8 @@ ipcMain.handle('launch-project', async (event, project, environment) => {
         });
 
         // Notificação de crash se saiu com erro
-        if (code !== 0 && code !== null) {
+        // Não mostrar se o projeto está sendo parado manualmente
+        if (code !== 0 && code !== null && !stoppingProjects.has(project.id)) {
           const notification = new Notification({
             title: `❌ ${project.name}`,
             body: `${task.name} encerrou com erro (código ${code})`,
@@ -637,6 +639,9 @@ function launchAllInExternalTerminal(tasks, project) {
 
 ipcMain.handle('stop-project', async (event, projectId) => {
   try {
+    // Adicionar ao Set de projetos sendo parados manualmente
+    stoppingProjects.add(projectId);
+
     const processes = runningProcesses.get(projectId);
 
     if (processes) {
@@ -681,6 +686,11 @@ ipcMain.handle('stop-project', async (event, projectId) => {
       });
       notification.show();
     }
+
+    // Remover do Set após 2 segundos (garantir que todos os processos terminaram)
+    setTimeout(() => {
+      stoppingProjects.delete(projectId);
+    }, 2000);
 
     return { success: true };
   } catch (error) {

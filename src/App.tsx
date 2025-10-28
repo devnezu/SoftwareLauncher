@@ -546,7 +546,14 @@ function App() {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                     {isRunning ? (
-                      <Button variant="destructive" onClick={stopProject}>
+                      <Button
+                        variant="destructive"
+                        onClick={stopProject}
+                        disabled={currentProject.tasks.every(task => task.executionMode === 'external')}
+                        title={currentProject.tasks.every(task => task.executionMode === 'external')
+                          ? t('project.cannotStopExternalTerminal') || 'Não é possível parar processos em terminal externo'
+                          : ''}
+                      >
                         <Square className="w-4 h-4" />
                         {t('buttons.stop')}
                       </Button>
