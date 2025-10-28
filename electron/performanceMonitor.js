@@ -1,4 +1,7 @@
 const pidusage = require('pidusage');
+const fs = require('fs').promises;
+const path = require('path');
+const { app } = require('electron');
 
 class PerformanceMonitor {
   constructor(mainWindow) {
@@ -6,6 +9,139 @@ class PerformanceMonitor {
     this.monitors = new Map(); // projectId -> { interval, processes }
     this.history = new Map(); // projectId -> array de métricas
     this.maxHistorySize = 60; // Guardar últimos 60 pontos (1 min se coleta a cada 1s)
+    this.persistenceEnabled = true; // Ativar persistência
+    this.persistenceInterval = 60000; // Salvar a cada 60 segundos
+    this.historyPath = path.join(app.getPath('userData'), 'performance-history');
+
+    // Criar diretório de histórico se não existir
+    this.ensureHistoryDir();
+  }
+
+  /**
+   * Garante que o diretório de histórico existe
+   */
+  async ensureHistoryDir() {
+    try {
+      await fs.mkdir(this.historyPath, { recursive: true });
+    } catch (error) {
+      console.error('Erro ao criar diretório de histórico:', error.message);
+    }
+  }
+
+  /**
+   * Salva histórico em arquivo JSON (formato: YYYY-MM.json)
+   */
+  async saveHistoryToFile(projectId, metrics) {
+    if (!this.persistenceEnabled) return;
+
+    try {
+      const date = new Date(metrics.timestamp);
+      const fileName = `${projectId}-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}.json`;
+      const filePath = path.join(this.historyPath, fileName);
+
+      // Ler arquivo existente ou criar novo
+      let existingData = [];
+      try {
+        const content = await fs.readFile(filePath, 'utf-8');
+        existingData = JSON.parse(content);
+      } catch (err) {
+        // Arquivo não existe ainda
+      }
+
+      // Adicionar nova métrica
+      existingData.push(metrics);
+
+      // Limitar tamanho (manter últimas 50.000 entradas por mês ~1 mês de dados a cada 2s)
+      if (existingData.length > 50000) {
+        existingData = existingData.slice(-50000);
+      }
+
+      // Salvar
+      await fs.writeFile(filePath, JSON.stringify(existingData, null, 2));
+    } catch (error) {
+      console.error('Erro ao salvar histórico:', error.message);
+    }
+  }
+
+  /**
+   * Carrega histórico de um período específico
+   * @param {string} projectId - ID do projeto
+   * @param {Date} startDate - Data inicial
+   * @param {Date} endDate - Data final
+   */
+  async loadHistoryFromFiles(projectId, startDate, endDate) {
+    try {
+      const metrics = [];
+
+      // Gerar lista de arquivos para o período
+      const files = [];
+      const current = new Date(startDate);
+
+      while (current <= endDate) {
+        const fileName = `${projectId}-${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}.json`;
+        files.push(fileName);
+        current.setMonth(current.getMonth() + 1);
+      }
+
+      // Ler todos os arquivos
+      for (const fileName of files) {
+        const filePath = path.join(this.historyPath, fileName);
+        try {
+          const content = await fs.readFile(filePath, 'utf-8');
+          const data = JSON.parse(content);
+
+          // Filtrar por período
+          const filtered = data.filter(m => {
+            const timestamp = new Date(m.timestamp);
+            return timestamp >= startDate && timestamp <= endDate;
+          });
+
+          metrics.push(...filtered);
+        } catch (err) {
+          // Arquivo não existe, continuar
+        }
+      }
+
+      return metrics;
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Lista todos os períodos disponíveis para um projeto
+   */
+  async getAvailablePeriods(projectId) {
+    try {
+      const files = await fs.readdir(this.historyPath);
+      const periods = [];
+
+      for (const file of files) {
+        if (file.startsWith(projectId) && file.endsWith('.json')) {
+          // Extrair ano e mês do nome do arquivo: projectId-YYYY-MM.json
+          const match = file.match(/-(\d{4})-(\d{2})\.json$/);
+          if (match) {
+            periods.push({
+              year: parseInt(match[1]),
+              month: parseInt(match[2]),
+              label: `${match[1]}-${match[2]}`
+            });
+          }
+        }
+      }
+
+      // Ordenar por data (mais recente primeiro)
+      periods.sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+      });
+
+      return periods;
+    } catch (error) {
+      console.error('Erro ao listar períodos:', error.message);
+      return [];
+    }
   }
 
   /**
@@ -92,14 +228,19 @@ class PerformanceMonitor {
         processes: processStats
       };
 
-      // Adicionar ao histórico
+      // Adicionar ao histórico em memória
       const history = this.history.get(projectId);
       history.push(metrics);
 
-      // Limitar tamanho do histórico
+      // Limitar tamanho do histórico em memória
       if (history.length > this.maxHistorySize) {
         history.shift();
       }
+
+      // Salvar em arquivo (assíncrono, não bloqueia)
+      this.saveHistoryToFile(projectId, metrics).catch(err => {
+        console.error('Erro ao persistir histórico:', err.message);
+      });
 
       // Enviar para frontend
       this.mainWindow.webContents.send('performance-metrics', metrics);

@@ -656,7 +656,7 @@ ipcMain.handle('get-supported-services', async () => {
   }
 });
 
-// Handler para obter histórico de métricas de performance
+// Handler para obter histórico de métricas de performance (memória)
 ipcMain.handle('get-performance-history', async (event, projectId) => {
   try {
     if (performanceMonitor) {
@@ -664,6 +664,34 @@ ipcMain.handle('get-performance-history', async (event, projectId) => {
     }
     return [];
   } catch (error) {
+    return [];
+  }
+});
+
+// Handler para carregar histórico de um período específico
+ipcMain.handle('load-performance-history', async (event, projectId, startDate, endDate) => {
+  try {
+    if (performanceMonitor) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      return await performanceMonitor.loadHistoryFromFiles(projectId, start, end);
+    }
+    return [];
+  } catch (error) {
+    console.error('Erro ao carregar histórico:', error.message);
+    return [];
+  }
+});
+
+// Handler para listar períodos disponíveis
+ipcMain.handle('get-available-periods', async (event, projectId) => {
+  try {
+    if (performanceMonitor) {
+      return await performanceMonitor.getAvailablePeriods(projectId);
+    }
+    return [];
+  } catch (error) {
+    console.error('Erro ao listar períodos:', error.message);
     return [];
   }
 });

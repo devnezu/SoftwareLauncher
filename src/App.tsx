@@ -13,6 +13,7 @@ import { Sidebar } from './components/Sidebar'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { AlertDialog } from './components/AlertDialog'
 import { PerformancePanel } from './components/PerformancePanel'
+import { AnsiText } from './components/AnsiText'
 import { useTranslation } from './i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
@@ -753,7 +754,7 @@ function App() {
                                 {line.taskName}
                               </span>
                             )}
-                            <span className="text-muted-foreground">[{line.timestamp}]</span> {line.data}
+                            <span className="text-muted-foreground">[{line.timestamp}]</span> <AnsiText>{line.data}</AnsiText>
                           </div>
                         ))
                       })()}
