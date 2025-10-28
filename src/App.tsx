@@ -261,6 +261,48 @@ function App() {
     }
   }
 
+  async function analyzeProjectWithAI() {
+    if (!ipcRenderer) return
+
+    try {
+      // Selecionar pasta do projeto
+      const projectPath = await ipcRenderer.invoke('select-project-directory')
+      if (!projectPath) return
+
+      // Mostrar loading
+      setAlertMessage(t('ai.analyzing') || 'Analisando projeto com IA...')
+      setAlertTitle(t('ai.pleaseWait') || 'Aguarde')
+      setAlertOpen(true)
+
+      // Analisar com IA
+      const result = await ipcRenderer.invoke('analyze-project-with-ai', projectPath)
+
+      if (result.success) {
+        // Preencher formulário com dados da IA
+        setFormName(result.projectName || '')
+        setFormDescription(result.description || '')
+        setFormTasks(result.tasks || [])
+
+        setAlertOpen(false)
+        showAlert(
+          t('ai.analysisComplete') || 'Análise completa!',
+          t('ai.tasksDetected', { count: result.tasks?.length || 0 }) || `${result.tasks?.length || 0} tarefas detectadas`
+        )
+      } else {
+        showAlert(
+          t('ai.analysisError') || 'Erro na análise',
+          result.error || t('ai.unknownError')
+        )
+      }
+    } catch (error) {
+      console.error('Error analyzing project with AI:', error)
+      showAlert(
+        t('ai.analysisError') || 'Erro na análise',
+        error.message
+      )
+    }
+  }
+
   function updateTaskMonitoring(index, field, value) {
     const newTasks = [...formTasks]
     if (!newTasks[index].monitoring) {
@@ -827,6 +869,26 @@ function App() {
                 className="mt-1.5"
                 rows={2}
               />
+            </div>
+
+            <div className="flex justify-center py-2">
+              <Button
+                variant="default"
+                className="w-full max-w-md bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                onClick={analyzeProjectWithAI}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v4"/>
+                  <path d="m16.2 7.8 2.9-2.9"/>
+                  <path d="M18 12h4"/>
+                  <path d="m16.2 16.2 2.9 2.9"/>
+                  <path d="M12 18v4"/>
+                  <path d="m4.9 19.1 2.9-2.9"/>
+                  <path d="M2 12h4"/>
+                  <path d="m4.9 4.9 2.9 2.9"/>
+                </svg>
+                {t('ai.analyzeProject') || 'Analisar Projeto com IA'}
+              </Button>
             </div>
 
             <div>

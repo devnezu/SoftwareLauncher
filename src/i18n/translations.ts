@@ -142,6 +142,15 @@ export const translations = {
       'fr': 'Français',
       'es': 'Español',
     },
+    ai: {
+      analyzeProject: 'Analisar Projeto com IA',
+      analyzing: 'Analisando projeto com IA...',
+      pleaseWait: 'Aguarde',
+      analysisComplete: 'Análise completa!',
+      tasksDetected: 'tarefas detectadas',
+      analysisError: 'Erro na análise',
+      unknownError: 'Erro desconhecido ao analisar projeto',
+    },
   },
   'en': {
     app: {
@@ -286,6 +295,15 @@ export const translations = {
       'fr': 'Français',
       'es': 'Español',
     },
+    ai: {
+      analyzeProject: 'Analyze Project with AI',
+      analyzing: 'Analyzing project with AI...',
+      pleaseWait: 'Please Wait',
+      analysisComplete: 'Analysis complete!',
+      tasksDetected: 'tasks detected',
+      analysisError: 'Analysis error',
+      unknownError: 'Unknown error while analyzing project',
+    },
   },
   'zh': {
     app: {
@@ -427,6 +445,15 @@ export const translations = {
       'zh': '中文',
       'fr': 'Français',
       'es': 'Español',
+    },
+    ai: {
+      analyzeProject: '使用 AI 分析项目',
+      analyzing: '正在使用 AI 分析项目...',
+      pleaseWait: '请稍候',
+      analysisComplete: '分析完成！',
+      tasksDetected: '个任务已检测',
+      analysisError: '分析错误',
+      unknownError: '分析项目时发生未知错误',
     },
   },
   'fr': {
@@ -570,6 +597,15 @@ export const translations = {
       'fr': 'Français',
       'es': 'Español',
     },
+    ai: {
+      analyzeProject: 'Analyser le projet avec IA',
+      analyzing: 'Analyse du projet avec IA...',
+      pleaseWait: 'Veuillez patienter',
+      analysisComplete: 'Analyse terminée!',
+      tasksDetected: 'tâches détectées',
+      analysisError: 'Erreur d\'analyse',
+      unknownError: 'Erreur inconnue lors de l\'analyse du projet',
+    },
   },
   'es': {
     app: {
@@ -711,6 +747,15 @@ export const translations = {
       'zh': '中文',
       'fr': 'Français',
       'es': 'Español',
+    },
+    ai: {
+      analyzeProject: 'Analizar Proyecto con IA',
+      analyzing: 'Analizando proyecto con IA...',
+      pleaseWait: 'Por favor espere',
+      analysisComplete: '¡Análisis completo!',
+      tasksDetected: 'tareas detectadas',
+      analysisError: 'Error de análisis',
+      unknownError: 'Error desconocido al analizar proyecto',
     },
   },
 }

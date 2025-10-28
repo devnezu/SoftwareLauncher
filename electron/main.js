@@ -6,11 +6,13 @@ const ServiceMonitor = require('./serviceMonitor');
 const ServiceDetector = require('./serviceDetector');
 const PerformanceMonitor = require('./performanceMonitor');
 const HealthCheckMonitor = require('./healthCheckMonitor');
+const GeminiService = require('./geminiService');
 
 let mainWindow;
 let serviceMonitor;
 let performanceMonitor;
 let healthCheckMonitor;
+let geminiService;
 const configPath = path.join(app.getPath('userData'), 'projects.json');
 
 const runningProcesses = new Map();
@@ -38,10 +40,11 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
 
-  // Inicializar ServiceMonitor, PerformanceMonitor e HealthCheckMonitor
+  // Inicializar ServiceMonitor, PerformanceMonitor, HealthCheckMonitor e GeminiService
   serviceMonitor = new ServiceMonitor(mainWindow);
   performanceMonitor = new PerformanceMonitor(mainWindow);
   healthCheckMonitor = new HealthCheckMonitor(mainWindow);
+  geminiService = new GeminiService(process.env.GEMINI_API_KEY || 'AIzaSyBGSRBXV7wCVeOwX-zV5ww1oZ8ALQe1iOQ');
 
   if (isDev) {
     // Usa a URL do servidor de desenvolvimento fornecida pelo vite-plugin-electron
@@ -895,5 +898,44 @@ ipcMain.handle('restart-task', async (event, projectId, taskName) => {
     return { success: false, error: error.message };
   }
 });
+
+// ==================== AI PROJECT ANALYSIS ====================
+
+// Handler para analisar projeto com IA
+ipcMain.handle('analyze-project-with-ai', async (event, projectPath) => {
+  try {
+    if (!geminiService) {
+      return {
+        success: false,
+        error: 'AI service not initialized'
+      };
+    }
+
+    const result = await geminiService.analyzeMultipleProjects(projectPath);
+    return result;
+  } catch (error) {
+    console.error('Error analyzing project with AI:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
+// Handler para selecionar diretório de projeto para análise
+ipcMain.handle('select-project-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Selecionar Pasta do Projeto'
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+
+  return null;
+});
+
+// ==================== END AI PROJECT ANALYSIS ====================
 
 // ==================== END HEALTH CHECKS ====================
