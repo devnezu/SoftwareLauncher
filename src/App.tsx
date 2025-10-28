@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal } from 'lucide-react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -35,7 +35,18 @@ function App() {
   const [alertDialog, setAlertDialog] = useState({ open: false, title: '', description: '' })
   const [activeConsoleTab, setActiveConsoleTab] = useState('all') // 'all' ou taskName
 
+  // Estados de collapsed (recolher/expandir seções)
+  const [tasksCollapsed, setTasksCollapsed] = useState(() => {
+    const saved = localStorage.getItem('tasksCollapsed')
+    return saved ? JSON.parse(saved) : false
+  })
+
   const processedOutputsRef = useRef(new Set())
+
+  // Persistir estados collapsed
+  useEffect(() => {
+    localStorage.setItem('tasksCollapsed', JSON.stringify(tasksCollapsed))
+  }, [tasksCollapsed])
 
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -425,7 +436,8 @@ function App() {
                 onNewProject={openNewProjectModal}
               />
             ) : currentProject && (
-              <>
+              <ScrollArea className="flex-1">
+              <div className="flex flex-col min-h-0">
                 <div className="p-6 border-b border-border flex justify-between items-center">
                   <div className="flex items-center gap-4">
                     <div>
@@ -478,12 +490,25 @@ function App() {
                   </div>
                 </div>
 
-                <div className="p-6 border-b border-border">
-                  <h3 className="text-sm font-semibold mb-3">{t('project.tasks')}</h3>
-                  {currentProject.tasks.length === 0 ? (
-                    <div className="text-muted-foreground text-sm">{t('project.noTasks')}</div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="border-b border-border">
+                  <div className="p-6 pb-3 flex justify-between items-center">
+                    <h3 className="text-sm font-semibold">{t('project.tasks')}</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTasksCollapsed(!tasksCollapsed)}
+                      className="h-7 w-7 p-0"
+                    >
+                      {tasksCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    </Button>
+                  </div>
+
+                  {!tasksCollapsed && (
+                    <div className="px-6 pb-6">
+                      {currentProject.tasks.length === 0 ? (
+                        <div className="text-muted-foreground text-sm">{t('project.noTasks')}</div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {currentProject.tasks.map((task, index) => (
                         <div key={index} className="bg-card p-4 rounded-lg border border-border">
                           <div className="flex items-center gap-2 mb-2">
@@ -516,6 +541,8 @@ function App() {
                           </div>
                         </div>
                       ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -676,7 +703,8 @@ function App() {
                     </div>
                   </ScrollArea>
                 </div>
-              </>
+              </div>
+              </ScrollArea>
             )}
           </main>
         </div>

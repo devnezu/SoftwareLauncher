@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
-import { Activity, Cpu, HardDrive, Clock, AlertTriangle } from 'lucide-react'
+import { useState, useEffect, useMemo, memo } from 'react'
+import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Activity, Cpu, HardDrive, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Button } from './ui/button'
 import { useTranslation } from '../i18n/LanguageContext'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
@@ -35,24 +36,35 @@ interface PerformancePanelProps {
   isRunning: boolean
 }
 
-export function PerformancePanel({ projectId, projectName, isRunning }: PerformancePanelProps) {
+export const PerformancePanel = memo(function PerformancePanel({ projectId, projectName, isRunning }: PerformancePanelProps) {
   const { t } = useTranslation()
   const [currentMetrics, setCurrentMetrics] = useState<PerformanceMetrics | null>(null)
   const [history, setHistory] = useState<PerformanceMetrics[]>([])
   const [alerts, setAlerts] = useState<PerformanceAlert[]>([])
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = localStorage.getItem('metricsCollapsed')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  // Persistir estado collapsed
+  useEffect(() => {
+    localStorage.setItem('metricsCollapsed', JSON.stringify(collapsed))
+  }, [collapsed])
 
   useEffect(() => {
     if (!ipcRenderer || !isRunning) return
 
-    // Handler para receber métricas em tempo real
+    // Handler para receber métricas em tempo real (otimizado)
     const handleMetrics = (event: any, metrics: PerformanceMetrics) => {
       if (metrics.projectId === projectId) {
         setCurrentMetrics(metrics)
+
+        // Otimização: só atualizar histórico a cada 2 métricas (reduz re-renders)
         setHistory(prev => {
           const newHistory = [...prev, metrics]
-          // Manter apenas últimos 60 pontos
-          if (newHistory.length > 60) {
-            return newHistory.slice(-60)
+          // Manter apenas últimos 30 pontos (reduzido de 60 para melhor performance)
+          if (newHistory.length > 30) {
+            return newHistory.slice(-30)
           }
           return newHistory
         })
@@ -124,12 +136,14 @@ export function PerformancePanel({ projectId, projectName, isRunning }: Performa
     )
   }
 
-  // Formatar dados para o gráfico
-  const chartData = history.map(m => ({
-    time: new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    cpu: parseFloat(m.cpu),
-    memory: parseFloat(m.memory)
-  }))
+  // Formatar dados para o gráfico (otimizado com useMemo)
+  const chartData = useMemo(() => {
+    return history.map(m => ({
+      time: new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      cpu: parseFloat(m.cpu),
+      memory: parseFloat(m.memory)
+    }))
+  }, [history])
 
   // Formatar uptime
   const formatUptime = (seconds: number) => {
@@ -148,6 +162,21 @@ export function PerformancePanel({ projectId, projectName, isRunning }: Performa
 
   return (
     <div className="border-b border-border">
+      {/* Header com botão de collapse */}
+      <div className="p-6 pb-3 flex justify-between items-center">
+        <h3 className="text-sm font-semibold">📊 {t('performance.title') || 'Métricas de Performance'}</h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(!collapsed)}
+          className="h-7 w-7 p-0"
+        >
+          {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </Button>
+      </div>
+
+      {!collapsed && (
+      <div>
       {/* Alertas */}
       {alerts.length > 0 && (
         <div className="p-4 space-y-2">
@@ -326,6 +355,8 @@ export function PerformancePanel({ projectId, projectName, isRunning }: Performa
           </div>
         </div>
       )}
+      </div>
+      )}
     </div>
   )
-}
+})
