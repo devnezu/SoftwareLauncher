@@ -1,4 +1,4 @@
-import { ChevronRight, Home } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 
 export function Breadcrumb({ items, onNavigate }) {
   return (
@@ -10,7 +10,6 @@ export function Breadcrumb({ items, onNavigate }) {
         return (
           <div key={index} className="flex items-center gap-2">
             {index > 0 && <ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
-            {index === 0 && <Home className="w-4 h-4 mr-1" strokeWidth={1.5} />}
             {isClickable ? (
               <button
                 onClick={() => onNavigate(index)}

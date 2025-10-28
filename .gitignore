@@ -38,4 +38,5 @@ yarn-error.log*
 # User data (configurações locais)
 # Descomente a linha abaixo se não quiser versionar as configurações
 # projects.json
-dist-electron/main.js
+dist-electron
+view.py
