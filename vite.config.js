@@ -37,6 +37,14 @@ export default defineConfig(({ command }) => ({
             outDir: 'dist-electron'
           }
         }
+      },
+      {
+        entry: 'electron/performanceMonitor.js',
+        vite: {
+          build: {
+            outDir: 'dist-electron'
+          }
+        }
       }
     ]),
     renderer()
