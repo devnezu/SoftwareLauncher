@@ -53,6 +53,14 @@ export default defineConfig(({ command }) => ({
             outDir: 'dist-electron'
           }
         }
+      },
+      {
+        entry: 'electron/geminiService.js',
+        vite: {
+          build: {
+            outDir: 'dist-electron'
+          }
+        }
       }
     ]),
     renderer()
