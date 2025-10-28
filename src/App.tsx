@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus } from 'lucide-react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -33,6 +33,7 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [alertDialog, setAlertDialog] = useState({ open: false, title: '', description: '' })
+  const [activeConsoleTab, setActiveConsoleTab] = useState('all') // 'all' ou taskName
 
   const processedOutputsRef = useRef(new Set())
 
@@ -376,11 +377,13 @@ function App() {
   function selectProject(project) {
     setCurrentProject(project)
     setView('project')
+    setActiveConsoleTab('all') // Resetar para aba "Tudo" ao trocar de projeto
   }
 
   function goHome() {
     setView('home')
     setCurrentProject(null)
+    setActiveConsoleTab('all')
   }
 
   function handleBreadcrumbNav(index) {
@@ -492,8 +495,9 @@ function App() {
                               </span>
                             )}
                             {task.executionMode === 'external' && (
-                              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">
-                                🪟 CMD
+                              <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30 flex items-center gap-1">
+                                <Terminal className="w-3 h-3" />
+                                <span>Terminal</span>
                               </span>
                             )}
                           </div>
@@ -549,11 +553,14 @@ function App() {
                   </div>
                 )}
 
-                <PerformancePanel
-                  projectId={currentProject.id}
-                  projectName={currentProject.name}
-                  isRunning={isRunning}
-                />
+                {/* Performance Panel - só mostra se tiver tasks internas (com PIDs monitoráveis) */}
+                {currentProject.tasks.some(task => (task.executionMode || 'internal') === 'internal') && (
+                  <PerformancePanel
+                    projectId={currentProject.id}
+                    projectName={currentProject.name}
+                    isRunning={isRunning}
+                  />
+                )}
 
                 <div className="flex-1 flex flex-col min-h-0">
                   <div className="px-6 py-3 border-b border-border flex justify-between items-center">
@@ -583,14 +590,72 @@ function App() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Abas do Console - Separar logs por task */}
+                  {currentProject.tasks.filter(t => (t.executionMode || 'internal') === 'internal').length > 0 && (
+                    <div className="border-b border-border bg-card/30">
+                      <div className="flex gap-1 px-4 py-2 overflow-x-auto">
+                        {/* Aba "Tudo" */}
+                        <button
+                          onClick={() => setActiveConsoleTab('all')}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors whitespace-nowrap ${
+                            activeConsoleTab === 'all'
+                              ? 'bg-background text-foreground border border-b-0 border-border'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                          }`}
+                        >
+                          📋 {t('console.allTasks') || 'Tudo'}
+                        </button>
+
+                        {/* Aba por Task Interna */}
+                        {currentProject.tasks
+                          .filter(task => (task.executionMode || 'internal') === 'internal')
+                          .map((task, index) => {
+                            const taskLogs = (projectConsoles[currentProject.id] || []).filter(
+                              log => log.taskName === task.name
+                            )
+                            const hasLogs = taskLogs.length > 0
+
+                            return (
+                              <button
+                                key={index}
+                                onClick={() => setActiveConsoleTab(task.name)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                                  activeConsoleTab === task.name
+                                    ? 'bg-background text-foreground border border-b-0 border-border'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                }`}
+                              >
+                                <span>{task.name}</span>
+                                {hasLogs && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                )}
+                              </button>
+                            )
+                          })}
+                      </div>
+                    </div>
+                  )}
+
                   <ScrollArea className="flex-1">
                     <div className="p-4 font-mono text-xs space-y-1 console-content">
-                      {(projectConsoles[currentProject.id] || []).length === 0 ? (
-                        <div className="text-muted-foreground text-center py-8">
-                          {t('project.noOutput')}
-                        </div>
-                      ) : (
-                        (projectConsoles[currentProject.id] || []).map((line, index) => (
+                      {(() => {
+                        const allLogs = projectConsoles[currentProject.id] || []
+                        const filteredLogs = activeConsoleTab === 'all'
+                          ? allLogs
+                          : allLogs.filter(log => log.taskName === activeConsoleTab)
+
+                        if (filteredLogs.length === 0) {
+                          return (
+                            <div className="text-muted-foreground text-center py-8">
+                              {activeConsoleTab === 'all'
+                                ? t('project.noOutput')
+                                : `${t('console.noOutputForTask') || 'Nenhuma saída para'} ${activeConsoleTab}`}
+                            </div>
+                          )
+                        }
+
+                        return filteredLogs.map((line, index) => (
                           <div
                             key={index}
                             className={`${
@@ -599,7 +664,7 @@ function App() {
                               'text-foreground'
                             }`}
                           >
-                            {line.taskName && (
+                            {activeConsoleTab === 'all' && line.taskName && (
                               <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded text-[10px] mr-2">
                                 {line.taskName}
                               </span>
@@ -607,7 +672,7 @@ function App() {
                             <span className="text-muted-foreground">[{line.timestamp}]</span> {line.data}
                           </div>
                         ))
-                      )}
+                      })()}
                     </div>
                   </ScrollArea>
                 </div>

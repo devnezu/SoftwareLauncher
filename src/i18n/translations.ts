@@ -118,6 +118,10 @@ export const translations = {
       notRunning: 'Execute o projeto para ver métricas de performance',
       loading: 'Carregando métricas...',
     },
+    console: {
+      allTasks: 'Tudo',
+      noOutputForTask: 'Nenhuma saída para',
+    },
     languages: {
       'pt-BR': 'Português',
       'en': 'English',
@@ -245,6 +249,10 @@ export const translations = {
       notRunning: 'Run the project to see performance metrics',
       loading: 'Loading metrics...',
     },
+    console: {
+      allTasks: 'All',
+      noOutputForTask: 'No output for',
+    },
     languages: {
       'pt-BR': 'Português',
       'en': 'English',
@@ -369,6 +377,10 @@ export const translations = {
     performance: {
       notRunning: '运行项目以查看性能指标',
       loading: '加载指标中...',
+    },
+    console: {
+      allTasks: '全部',
+      noOutputForTask: '没有输出',
     },
     languages: {
       'pt-BR': 'Português',
@@ -495,6 +507,10 @@ export const translations = {
       notRunning: 'Exécutez le projet pour voir les métriques de performance',
       loading: 'Chargement des métriques...',
     },
+    console: {
+      allTasks: 'Tout',
+      noOutputForTask: 'Aucune sortie pour',
+    },
     languages: {
       'pt-BR': 'Português',
       'en': 'English',
@@ -619,6 +635,10 @@ export const translations = {
     performance: {
       notRunning: 'Ejecuta el proyecto para ver las métricas de rendimiento',
       loading: 'Cargando métricas...',
+    },
+    console: {
+      allTasks: 'Todo',
+      noOutputForTask: 'Sin salida para',
     },
     languages: {
       'pt-BR': 'Português',
