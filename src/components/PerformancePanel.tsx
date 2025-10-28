@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, memo } from 'react'
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Activity, Cpu, HardDrive, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Activity, Cpu, HardDrive, Clock, AlertTriangle, ChevronDown, ChevronUp, Pause, Play, RotateCcw, TrendingUp, Circle } from 'lucide-react'
 import { Button } from './ui/button'
 import { useTranslation } from '../i18n/LanguageContext'
 
@@ -45,6 +45,9 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
     const saved = localStorage.getItem('metricsCollapsed')
     return saved ? JSON.parse(saved) : false
   })
+  const [isPaused, setIsPaused] = useState(false)
+  const [pausedHistory, setPausedHistory] = useState<PerformanceMetrics[]>([])
+  const [pausedMetrics, setPausedMetrics] = useState<PerformanceMetrics | null>(null)
 
   // Formatar uptime - Moved before early returns
   const formatUptime = (seconds: number) => {
@@ -63,12 +66,33 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
 
   // Formatar dados para o gráfico (otimizado com useMemo) - Moved before early returns
   const chartData = useMemo(() => {
-    return history.map(m => ({
+    const dataToUse = isPaused ? pausedHistory : history
+    return dataToUse.map(m => ({
       time: new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       cpu: parseFloat(m.cpu),
       memory: parseFloat(m.memory)
     }))
-  }, [history])
+  }, [history, isPaused, pausedHistory])
+
+  // Métricas a exibir (pausadas ou atuais)
+  const displayMetrics = isPaused ? pausedMetrics : currentMetrics
+
+  // Função para pausar/resumir
+  const togglePause = () => {
+    if (!isPaused) {
+      // Pausar: salvar estado atual
+      setPausedHistory([...history])
+      setPausedMetrics(currentMetrics)
+    }
+    setIsPaused(!isPaused)
+  }
+
+  // Função para resetar (voltar ao tempo real)
+  const resetToLive = () => {
+    setIsPaused(false)
+    setPausedHistory([])
+    setPausedMetrics(null)
+  }
 
   // Persistir estado collapsed
   useEffect(() => {
@@ -143,18 +167,31 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
   if (!isRunning) {
     return (
       <div className="p-6 border-b border-border">
-        <div className="text-center text-muted-foreground text-sm">
-          📊 {t('performance.notRunning') || 'Execute o projeto para ver métricas de performance'}
+        <div className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+          <TrendingUp className="w-4 h-4" />
+          {t('performance.notRunning') || 'Execute o projeto para ver métricas de performance'}
         </div>
       </div>
     )
   }
 
-  if (!currentMetrics) {
+  if (!currentMetrics && !isPaused) {
     return (
       <div className="p-6 border-b border-border">
-        <div className="text-center text-muted-foreground text-sm">
-          ⏳ {t('performance.loading') || 'Carregando métricas...'}
+        <div className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+          <Activity className="w-4 h-4 animate-pulse" />
+          {t('performance.loading') || 'Carregando métricas...'}
+        </div>
+      </div>
+    )
+  }
+
+  if (!displayMetrics) {
+    return (
+      <div className="p-6 border-b border-border">
+        <div className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+          <Activity className="w-4 h-4 animate-pulse" />
+          {t('performance.loading') || 'Carregando métricas...'}
         </div>
       </div>
     )
@@ -164,15 +201,61 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
     <div className="border-b border-border">
       {/* Header com botão de collapse */}
       <div className="p-6 pb-3 flex justify-between items-center">
-        <h3 className="text-sm font-semibold">📊 {t('performance.title') || 'Métricas de Performance'}</h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-7 w-7 p-0"
-        >
-          {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4" />
+          <h3 className="text-sm font-semibold">{t('performance.title') || 'Métricas de Performance'}</h3>
+          {isPaused && (
+            <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/30 flex items-center gap-1">
+              <Pause className="w-3 h-3" />
+              Pausado
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {!collapsed && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={togglePause}
+                className="h-7 px-2 text-xs"
+                title={isPaused ? 'Retomar atualização em tempo real' : 'Pausar e ver histórico'}
+              >
+                {isPaused ? (
+                  <>
+                    <Play className="w-3 h-3 mr-1" />
+                    Retomar
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-3 h-3 mr-1" />
+                    Pausar
+                  </>
+                )}
+              </Button>
+              {isPaused && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetToLive}
+                  className="h-7 px-2 text-xs"
+                  title="Voltar para tempo real"
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Resetar
+                </Button>
+              )}
+            </>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className="h-7 w-7 p-0"
+          >
+            {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          </Button>
+        </div>
       </div>
 
       {!collapsed && (
@@ -204,16 +287,17 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
             <span className="text-xs font-medium">CPU</span>
           </div>
           <div className="text-2xl font-bold">
-            {currentMetrics.cpu}%
+            {displayMetrics.cpu}%
           </div>
-          <div className={`text-xs mt-1 ${
-            parseFloat(currentMetrics.cpu) > 80 ? 'text-red-400' :
-            parseFloat(currentMetrics.cpu) > 50 ? 'text-yellow-400' :
+          <div className={`text-xs mt-1 flex items-center gap-1 ${
+            parseFloat(displayMetrics.cpu) > 80 ? 'text-red-400' :
+            parseFloat(displayMetrics.cpu) > 50 ? 'text-yellow-400' :
             'text-green-400'
           }`}>
-            {parseFloat(currentMetrics.cpu) > 80 ? '🔴 Alto' :
-             parseFloat(currentMetrics.cpu) > 50 ? '🟡 Médio' :
-             '🟢 Normal'}
+            <Circle className="w-2 h-2 fill-current" />
+            {parseFloat(displayMetrics.cpu) > 80 ? 'Alto' :
+             parseFloat(displayMetrics.cpu) > 50 ? 'Médio' :
+             'Normal'}
           </div>
         </div>
 
@@ -223,16 +307,17 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
             <span className="text-xs font-medium">RAM</span>
           </div>
           <div className="text-2xl font-bold">
-            {currentMetrics.memory} MB
+            {displayMetrics.memory} MB
           </div>
-          <div className={`text-xs mt-1 ${
-            parseFloat(currentMetrics.memory) > 500 ? 'text-red-400' :
-            parseFloat(currentMetrics.memory) > 250 ? 'text-yellow-400' :
+          <div className={`text-xs mt-1 flex items-center gap-1 ${
+            parseFloat(displayMetrics.memory) > 500 ? 'text-red-400' :
+            parseFloat(displayMetrics.memory) > 250 ? 'text-yellow-400' :
             'text-green-400'
           }`}>
-            {parseFloat(currentMetrics.memory) > 500 ? '🔴 Alto' :
-             parseFloat(currentMetrics.memory) > 250 ? '🟡 Médio' :
-             '🟢 Normal'}
+            <Circle className="w-2 h-2 fill-current" />
+            {parseFloat(displayMetrics.memory) > 500 ? 'Alto' :
+             parseFloat(displayMetrics.memory) > 250 ? 'Médio' :
+             'Normal'}
           </div>
         </div>
 
@@ -242,7 +327,7 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
             <span className="text-xs font-medium">Uptime</span>
           </div>
           <div className="text-2xl font-bold">
-            {formatUptime(currentMetrics.uptime)}
+            {formatUptime(displayMetrics.uptime)}
           </div>
           <div className="text-xs mt-1 text-muted-foreground">
             Tempo de execução
@@ -255,7 +340,7 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
             <span className="text-xs font-medium">Processos</span>
           </div>
           <div className="text-2xl font-bold">
-            {currentMetrics.processCount}
+            {displayMetrics.processCount}
           </div>
           <div className="text-xs mt-1 text-muted-foreground">
             Tasks ativas
@@ -266,7 +351,10 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
       {/* Gráfico de Performance */}
       {chartData.length > 1 && (
         <div className="px-6 pb-6">
-          <h3 className="text-sm font-semibold mb-4">📈 Histórico de Performance</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4" />
+            <h3 className="text-sm font-semibold">Histórico de Performance</h3>
+          </div>
 
           <div className="bg-card p-4 rounded-lg border border-border">
             <ResponsiveContainer width="100%" height={200}>
@@ -324,11 +412,14 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
       )}
 
       {/* Detalhes dos Processos */}
-      {currentMetrics.processes.length > 0 && (
+      {displayMetrics.processes.length > 0 && (
         <div className="px-6 pb-6">
-          <h3 className="text-sm font-semibold mb-3">🔍 Processos Individuais</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="w-4 h-4" />
+            <h3 className="text-sm font-semibold">Processos Individuais</h3>
+          </div>
           <div className="space-y-2">
-            {currentMetrics.processes.map((proc, index) => (
+            {displayMetrics.processes.map((proc, index) => (
               <div key={proc.pid} className="bg-card p-3 rounded-lg border border-border">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">

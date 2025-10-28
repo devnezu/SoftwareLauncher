@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp, AlertTriangle, Link, Search, CheckCircle, Timer, ListOrdered, Eye, Monitor } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -87,7 +87,7 @@ function App() {
           ...prev,
           [data.service]: data.url
         }))
-        addConsoleOutput(data.monitorId, 'system', `🔗 ${data.service.toUpperCase()} URL capturada: ${data.url}`, data.monitorId)
+        addConsoleOutput(data.monitorId, 'system', `[${data.service.toUpperCase()}] URL capturada: ${data.url}`, data.monitorId)
       }
 
       ipcRenderer.on('process-output', handleProcessOutput)
@@ -236,9 +236,9 @@ function App() {
 
     if (result.available && result.config) {
       updateTask(index, 'monitoring', result.config)
-      showAlert(`✅ ${result.service} detectado!`, 'Monitoramento configurado automaticamente.')
+      showAlert(`${result.service} detectado!`, 'Monitoramento configurado automaticamente.')
     } else if (result.warning) {
-      showAlert(`⚠️ ${result.service || 'Serviço'} detectado`, result.warning)
+      showAlert(`${result.service || 'Serviço'} detectado`, result.warning)
     } else {
       showAlert(t('form.serviceNotDetected'))
     }
@@ -371,9 +371,9 @@ function App() {
     for (const conflict of portConflicts) {
       const killResult = await ipcRenderer.invoke('kill-process-by-pid', conflict.pid)
       if (killResult.success) {
-        addConsoleOutput(currentProject.id, 'system', `✅ ${t('port.processKilled') || 'Processo encerrado'} (PID ${conflict.pid}, porta ${conflict.port})`, '')
+        addConsoleOutput(currentProject.id, 'system', `${t('port.processKilled') || 'Processo encerrado'} (PID ${conflict.pid}, porta ${conflict.port})`, '')
       } else {
-        addConsoleOutput(currentProject.id, 'error', `❌ ${t('port.failedToKill') || 'Falha ao encerrar processo'} (PID ${conflict.pid})`, '')
+        addConsoleOutput(currentProject.id, 'error', `${t('port.failedToKill') || 'Falha ao encerrar processo'} (PID ${conflict.pid})`, '')
       }
     }
 
@@ -567,8 +567,9 @@ function App() {
                             {isRunning && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                             <h4 className="font-medium text-sm">{task.name}</h4>
                             {task.monitoring?.enabled && (
-                              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                🔍 {task.monitoring.type}
+                              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {task.monitoring.type}
                               </span>
                             )}
                             {task.executionMode === 'external' && (
@@ -601,7 +602,10 @@ function App() {
 
                 {isRunning && Object.keys(capturedUrls).length > 0 && (
                   <div className="p-6 border-b border-border">
-                    <h3 className="text-sm font-semibold mb-3">🔗 URLs Capturadas</h3>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Link className="w-4 h-4" />
+                      <h3 className="text-sm font-semibold">URLs Capturadas</h3>
+                    </div>
                     <div className="space-y-2">
                       {Object.entries(capturedUrls).map(([service, url]) => (
                         <div key={service} className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg">
@@ -677,13 +681,14 @@ function App() {
                         {/* Aba "Tudo" */}
                         <button
                           onClick={() => setActiveConsoleTab('all')}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors whitespace-nowrap ${
+                          className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                             activeConsoleTab === 'all'
                               ? 'bg-background text-foreground border border-b-0 border-border'
                               : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                           }`}
                         >
-                          📋 {t('console.allTasks') || 'Tudo'}
+                          <ListOrdered className="w-3 h-3" />
+                          {t('console.allTasks') || 'Tudo'}
                         </button>
 
                         {/* Aba por Task Interna */}
@@ -835,7 +840,7 @@ function App() {
                         onClick={() => autoDetectService(index)}
                         title="Detectar serviço automaticamente (ngrok, cloudflared)"
                       >
-                        🔍
+                        <Search className="w-4 h-4" />
                       </Button>
                     </div>
 
@@ -891,24 +896,26 @@ function App() {
                         <button
                           type="button"
                           onClick={() => updateTask(index, 'executionMode', 'internal')}
-                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all flex items-center justify-center gap-1.5 ${
                             (task.executionMode || 'internal') === 'internal'
                               ? 'bg-primary text-primary-foreground border-primary'
                               : 'border-border hover:bg-accent'
                           }`}
                         >
-                          📟 {t('form.executionModeInternal') || 'Console Interno'}
+                          <Monitor className="w-3.5 h-3.5" />
+                          {t('form.executionModeInternal') || 'Console Interno'}
                         </button>
                         <button
                           type="button"
                           onClick={() => updateTask(index, 'executionMode', 'external')}
-                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all flex items-center justify-center gap-1.5 ${
                             (task.executionMode || 'internal') === 'external'
                               ? 'bg-primary text-primary-foreground border-primary'
                               : 'border-border hover:bg-accent'
                           }`}
                         >
-                          🪟 {t('form.executionModeExternal') || 'Terminal Externo'}
+                          <Terminal className="w-3.5 h-3.5" />
+                          {t('form.executionModeExternal') || 'Terminal Externo'}
                         </button>
                       </div>
                     </div>
@@ -970,9 +977,18 @@ function App() {
                         </label>
                         {task.monitoring.enabled && (
                           <div className="text-xs text-muted-foreground space-y-1 pl-6">
-                            <div>📡 API: <code className="bg-black/20 px-1 rounded">{task.monitoring.apiUrl}</code></div>
-                            <div>📝 Atualizar variável: <code className="bg-black/20 px-1 rounded">{task.monitoring.envVarToUpdate}</code></div>
-                            <div>⏱️ Timeout: {task.monitoring.timeout?.maxAttempts || 15}x de {(task.monitoring.timeout?.intervalMs || 2000) / 1000}s</div>
+                            <div className="flex items-center gap-1.5">
+                              <Link className="w-3 h-3" />
+                              API: <code className="bg-black/20 px-1 rounded">{task.monitoring.apiUrl}</code>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <FileText className="w-3 h-3" />
+                              Atualizar variável: <code className="bg-black/20 px-1 rounded">{task.monitoring.envVarToUpdate}</code>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Timer className="w-3 h-3" />
+                              Timeout: {task.monitoring.timeout?.maxAttempts || 15}x de {(task.monitoring.timeout?.intervalMs || 2000) / 1000}s
+                            </div>
                           </div>
                         )}
                       </div>

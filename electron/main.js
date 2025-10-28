@@ -44,86 +44,9 @@ function createWindow() {
     const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     mainWindow.loadURL(devServerUrl);
     console.log('Loading development server from:', devServerUrl);
-
-    // 🔧 ABRIR DevTools automaticamente no modo dev
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
-
-  // 🖱️ MENU DE CONTEXTO (Botão Direito) com DevTools
-  mainWindow.webContents.on('context-menu', (e, params) => {
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: '🔍 Inspecionar Elemento',
-        click: () => {
-          mainWindow.webContents.inspectElement(params.x, params.y);
-        }
-      },
-      {
-        label: '🛠️ Abrir DevTools',
-        accelerator: 'F12',
-        click: () => {
-          mainWindow.webContents.openDevTools({ mode: 'detach' });
-        }
-      },
-      {
-        label: '🔄 Recarregar',
-        accelerator: 'CmdOrCtrl+R',
-        click: () => {
-          mainWindow.reload();
-        }
-      },
-      { type: 'separator' },
-      {
-        label: '📋 Copiar',
-        accelerator: 'CmdOrCtrl+C',
-        role: 'copy',
-        enabled: params.selectionText.length > 0
-      },
-      {
-        label: '📄 Colar',
-        accelerator: 'CmdOrCtrl+V',
-        role: 'paste'
-      },
-      { type: 'separator' },
-      {
-        label: '❌ Fechar DevTools',
-        click: () => {
-          mainWindow.webContents.closeDevTools();
-        }
-      }
-    ]);
-
-    contextMenu.popup();
-  });
-
-  // ⌨️ ATALHOS DE TECLADO para DevTools
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    // F12 para abrir/fechar DevTools
-    if (input.key === 'F12' && input.type === 'keyDown') {
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools();
-      } else {
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
-      }
-    }
-
-    // Ctrl+Shift+I (ou Cmd+Shift+I no Mac) para abrir/fechar DevTools
-    if ((input.control || input.meta) && input.shift && input.key === 'I' && input.type === 'keyDown') {
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools();
-      } else {
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
-      }
-    }
-
-    // Ctrl+Shift+C (ou Cmd+Shift+C no Mac) para modo inspecionar
-    if ((input.control || input.meta) && input.shift && input.key === 'C' && input.type === 'keyDown') {
-      mainWindow.webContents.openDevTools({ mode: 'detach', activate: true });
-      mainWindow.webContents.devToolsWebContents?.executeJavaScript('DevToolsAPI.enterInspectElementMode()');
-    }
-  });
 }
 
 app.whenReady().then(createWindow);
@@ -330,45 +253,70 @@ async function checkPortInUse(port) {
     let command, args;
 
     if (process.platform === 'win32') {
-      // Windows: netstat -ano | findstr :<port>
-      command = 'netstat';
-      args = ['-ano'];
+      // Windows: netstat -ano para verificar todas as conexões
+      command = 'cmd';
+      args = ['/c', `netstat -ano | findstr :${port}`];
     } else {
       // Linux/macOS: lsof -i :<port>
       command = 'lsof';
       args = ['-i', `:${port}`, '-t'];
     }
 
-    const proc = spawn(command, args);
+    const proc = spawn(command, args, { shell: true });
     let output = '';
+    let errorOutput = '';
 
     proc.stdout.on('data', (data) => {
       output += data.toString();
     });
 
+    proc.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
     proc.on('close', (code) => {
       if (process.platform === 'win32') {
         // Parse Windows netstat output
+        // Formato: TCP    0.0.0.0:5173           0.0.0.0:0              LISTENING       12345
+        // ou:      TCP    [::]:3333              [::]:0                 LISTENING       67890
         const lines = output.split('\n');
+
         for (const line of lines) {
-          if (line.includes(`:${port} `) || line.includes(`:${port}\t`)) {
+          const trimmed = line.trim();
+
+          // Verificar se a linha contém a porta e está em estado LISTENING ou ESTABLISHED
+          if (trimmed.includes(`:${port}`) && (trimmed.includes('LISTENING') || trimmed.includes('ESTABLISHED'))) {
             // Extrair PID da última coluna
-            const parts = line.trim().split(/\s+/);
+            const parts = trimmed.split(/\s+/);
             const pid = parseInt(parts[parts.length - 1]);
-            if (pid && !isNaN(pid)) {
+
+            if (pid && !isNaN(pid) && pid > 0) {
+              console.log(`[Port Check] Porta ${port} em uso pelo PID ${pid}`);
               return resolve(pid);
             }
           }
         }
+
+        // Se não encontrou, a porta está livre
+        console.log(`[Port Check] Porta ${port} está livre`);
         resolve(null);
       } else {
         // Parse Linux/macOS lsof output (apenas PID)
-        const pid = parseInt(output.trim().split('\n')[0]);
-        resolve(pid && !isNaN(pid) ? pid : null);
+        const firstLine = output.trim().split('\n')[0];
+        const pid = parseInt(firstLine);
+
+        if (pid && !isNaN(pid) && pid > 0) {
+          console.log(`[Port Check] Porta ${port} em uso pelo PID ${pid}`);
+          resolve(pid);
+        } else {
+          console.log(`[Port Check] Porta ${port} está livre`);
+          resolve(null);
+        }
       }
     });
 
-    proc.on('error', () => {
+    proc.on('error', (err) => {
+      console.error(`[Port Check] Erro ao verificar porta ${port}:`, err.message);
       resolve(null);
     });
   });
@@ -538,7 +486,7 @@ function launchAllInExternalTerminal(tasks, project) {
     projectId: project.id,
     taskName: project.name,
     type: 'system',
-    data: `🪟 Abrindo ${tasks.length} guia(s) em terminal externo para: ${project.name}`
+    data: `[Terminal Externo] Abrindo ${tasks.length} guia(s) para: ${project.name}`
   });
 
   if (process.platform === 'win32') {
