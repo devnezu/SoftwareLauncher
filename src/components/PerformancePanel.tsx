@@ -46,6 +46,30 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
     return saved ? JSON.parse(saved) : false
   })
 
+  // Formatar uptime - Moved before early returns
+  const formatUptime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`
+    } else {
+      return `${secs}s`
+    }
+  }
+
+  // Formatar dados para o gráfico (otimizado com useMemo) - Moved before early returns
+  const chartData = useMemo(() => {
+    return history.map(m => ({
+      time: new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      cpu: parseFloat(m.cpu),
+      memory: parseFloat(m.memory)
+    }))
+  }, [history])
+
   // Persistir estado collapsed
   useEffect(() => {
     localStorage.setItem('metricsCollapsed', JSON.stringify(collapsed))
@@ -134,30 +158,6 @@ export const PerformancePanel = memo(function PerformancePanel({ projectId, proj
         </div>
       </div>
     )
-  }
-
-  // Formatar dados para o gráfico (otimizado com useMemo)
-  const chartData = useMemo(() => {
-    return history.map(m => ({
-      time: new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      cpu: parseFloat(m.cpu),
-      memory: parseFloat(m.memory)
-    }))
-  }, [history])
-
-  // Formatar uptime
-  const formatUptime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`
-    } else {
-      return `${secs}s`
-    }
   }
 
   return (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
+import { Play, Square, Settings, Trash2, Folder, FileText, Code2, Copy, Check, Plus, Terminal, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './components/ui/dialog'
 import { Input } from './components/ui/input'
@@ -34,6 +34,11 @@ function App() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [alertDialog, setAlertDialog] = useState({ open: false, title: '', description: '' })
   const [activeConsoleTab, setActiveConsoleTab] = useState('all') // 'all' ou taskName
+
+  // Estados para detecção de porta
+  const [portConflictDialogOpen, setPortConflictDialogOpen] = useState(false)
+  const [portConflicts, setPortConflicts] = useState([])
+  const [pendingLaunchProject, setPendingLaunchProject] = useState(null)
 
   // Estados de collapsed (recolher/expandir seções)
   const [tasksCollapsed, setTasksCollapsed] = useState(() => {
@@ -327,6 +332,25 @@ function App() {
     }
 
     const filteredProject = { ...currentProject, tasks: tasksToRun }
+
+    // 🔍 DETECÇÃO DE PORTAS: Verificar se alguma porta está em uso
+    const portCheckResult = await ipcRenderer.invoke('check-ports-in-use', filteredProject)
+
+    if (portCheckResult.success && portCheckResult.portsInUse.length > 0) {
+      // Mostrar dialog perguntando se usuário quer matar os processos
+      setPortConflicts(portCheckResult.portsInUse)
+      setPortConflictDialogOpen(true)
+      // Armazenar o projeto para lançar depois se o usuário confirmar
+      setPendingLaunchProject(filteredProject)
+      return
+    }
+
+    // Se não há conflitos, lançar normalmente
+    await executeLaunch(filteredProject)
+  }
+
+  // Função auxiliar para executar o launch (separada para reutilizar após matar processos)
+  async function executeLaunch(filteredProject) {
     const result = await ipcRenderer.invoke('launch-project', filteredProject, currentEnvironment)
 
     if (result.success) {
@@ -335,6 +359,34 @@ function App() {
     } else {
       addConsoleOutput(currentProject.id, 'error', `${t('project.failedToStart')}: ${result.error}`, '')
     }
+  }
+
+  // Handler para matar processos e lançar projeto
+  async function handleKillProcessesAndLaunch() {
+    if (!pendingLaunchProject || !ipcRenderer) return
+
+    addConsoleOutput(currentProject.id, 'system', t('port.killingProcesses') || 'Encerrando processos que estão usando as portas...', '')
+
+    // Matar todos os processos que estão usando as portas
+    for (const conflict of portConflicts) {
+      const killResult = await ipcRenderer.invoke('kill-process-by-pid', conflict.pid)
+      if (killResult.success) {
+        addConsoleOutput(currentProject.id, 'system', `✅ ${t('port.processKilled') || 'Processo encerrado'} (PID ${conflict.pid}, porta ${conflict.port})`, '')
+      } else {
+        addConsoleOutput(currentProject.id, 'error', `❌ ${t('port.failedToKill') || 'Falha ao encerrar processo'} (PID ${conflict.pid})`, '')
+      }
+    }
+
+    // Aguardar um pouco para garantir que as portas foram liberadas
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Fechar dialog
+    setPortConflictDialogOpen(false)
+    setPortConflicts([])
+    setPendingLaunchProject(null)
+
+    // Lançar o projeto
+    await executeLaunch(pendingLaunchProject)
   }
 
   async function stopProject() {
@@ -1007,6 +1059,64 @@ function App() {
         description={alertDialog.description}
         buttonText="OK"
       />
+
+      {/* Dialog de Conflito de Porta */}
+      <Dialog open={portConflictDialogOpen} onOpenChange={setPortConflictDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+              {t('port.conflictTitle') || 'Porta em uso'}
+            </DialogTitle>
+            <DialogDescription>
+              {t('port.conflictDescription') || 'As seguintes portas já estão sendo usadas por outros processos:'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-4">
+            {portConflicts.map((conflict, index) => (
+              <div key={index} className="bg-card p-3 rounded-lg border border-border">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-medium text-sm">
+                      {t('port.port') || 'Porta'}: <span className="text-primary">{conflict.port}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {t('port.task') || 'Task'}: {conflict.taskName}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      PID: {conflict.pid}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogDescription className="text-xs text-muted-foreground">
+            {t('port.killWarning') || 'Deseja encerrar estes processos e continuar? Os processos serão forçadamente terminados.'}
+          </DialogDescription>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPortConflictDialogOpen(false)
+                setPortConflicts([])
+                setPendingLaunchProject(null)
+              }}
+            >
+              {t('buttons.cancel') || 'Cancelar'}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleKillProcessesAndLaunch}
+            >
+              {t('port.killAndLaunch') || 'Encerrar e Lançar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -285,6 +285,159 @@ ipcMain.handle('write-env-file', async (event, filePath, variables) => {
   }
 });
 
+// ==================== PORT DETECTION ====================
+
+/**
+ * Extrai números de porta de um comando
+ * Procura por padrões como: -p 3000, --port 3000, :3000, PORT=3000
+ */
+function extractPortsFromCommand(command) {
+  const ports = [];
+
+  // Padrão 1: -p 3000, --port 3000, --port=3000
+  const flagPattern = /(?:-p|--port)[=\s]+(\d+)/gi;
+  let match;
+  while ((match = flagPattern.exec(command)) !== null) {
+    ports.push(parseInt(match[1]));
+  }
+
+  // Padrão 2: :3000 (comum em URLs como localhost:3000)
+  const colonPattern = /:(\d{4,5})\b/g;
+  while ((match = colonPattern.exec(command)) !== null) {
+    const port = parseInt(match[1]);
+    if (port >= 1000 && port <= 65535) {
+      ports.push(port);
+    }
+  }
+
+  // Padrão 3: PORT=3000, PORT 3000
+  const portVarPattern = /PORT[=\s]+(\d+)/gi;
+  while ((match = portVarPattern.exec(command)) !== null) {
+    ports.push(parseInt(match[1]));
+  }
+
+  // Remover duplicatas
+  return [...new Set(ports)];
+}
+
+/**
+ * Verifica se uma porta está em uso e retorna o PID do processo
+ * @param {number} port - Número da porta
+ * @returns {Promise<number|null>} PID do processo ou null se porta está livre
+ */
+async function checkPortInUse(port) {
+  return new Promise((resolve) => {
+    let command, args;
+
+    if (process.platform === 'win32') {
+      // Windows: netstat -ano | findstr :<port>
+      command = 'netstat';
+      args = ['-ano'];
+    } else {
+      // Linux/macOS: lsof -i :<port>
+      command = 'lsof';
+      args = ['-i', `:${port}`, '-t'];
+    }
+
+    const proc = spawn(command, args);
+    let output = '';
+
+    proc.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (process.platform === 'win32') {
+        // Parse Windows netstat output
+        const lines = output.split('\n');
+        for (const line of lines) {
+          if (line.includes(`:${port} `) || line.includes(`:${port}\t`)) {
+            // Extrair PID da última coluna
+            const parts = line.trim().split(/\s+/);
+            const pid = parseInt(parts[parts.length - 1]);
+            if (pid && !isNaN(pid)) {
+              return resolve(pid);
+            }
+          }
+        }
+        resolve(null);
+      } else {
+        // Parse Linux/macOS lsof output (apenas PID)
+        const pid = parseInt(output.trim().split('\n')[0]);
+        resolve(pid && !isNaN(pid) ? pid : null);
+      }
+    });
+
+    proc.on('error', () => {
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Mata um processo pelo PID
+ */
+async function killProcessByPid(pid) {
+  return new Promise((resolve) => {
+    try {
+      if (process.platform === 'win32') {
+        // Windows: taskkill /F /PID <pid>
+        const proc = spawn('taskkill', ['/F', '/PID', pid.toString()]);
+        proc.on('close', (code) => {
+          resolve(code === 0);
+        });
+      } else {
+        // Linux/macOS: kill -9 <pid>
+        const proc = spawn('kill', ['-9', pid.toString()]);
+        proc.on('close', (code) => {
+          resolve(code === 0);
+        });
+      }
+    } catch (error) {
+      resolve(false);
+    }
+  });
+}
+
+// IPC Handler: Verificar se portas estão em uso
+ipcMain.handle('check-ports-in-use', async (event, project) => {
+  try {
+    const portsInUse = [];
+
+    for (const task of project.tasks) {
+      const ports = extractPortsFromCommand(task.command);
+
+      for (const port of ports) {
+        const pid = await checkPortInUse(port);
+        if (pid) {
+          portsInUse.push({
+            port,
+            pid,
+            taskName: task.name,
+            command: task.command
+          });
+        }
+      }
+    }
+
+    return { success: true, portsInUse };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler: Matar processo por PID
+ipcMain.handle('kill-process-by-pid', async (event, pid) => {
+  try {
+    const success = await killProcessByPid(pid);
+    return { success };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== END PORT DETECTION ====================
+
 ipcMain.handle('launch-project', async (event, project, environment) => {
   try {
     const projectProcesses = [];
