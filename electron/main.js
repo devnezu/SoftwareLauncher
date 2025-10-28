@@ -44,9 +44,86 @@ function createWindow() {
     const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     mainWindow.loadURL(devServerUrl);
     console.log('Loading development server from:', devServerUrl);
+
+    // 🔧 ABRIR DevTools automaticamente no modo dev
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  // 🖱️ MENU DE CONTEXTO (Botão Direito) com DevTools
+  mainWindow.webContents.on('context-menu', (e, params) => {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: '🔍 Inspecionar Elemento',
+        click: () => {
+          mainWindow.webContents.inspectElement(params.x, params.y);
+        }
+      },
+      {
+        label: '🛠️ Abrir DevTools',
+        accelerator: 'F12',
+        click: () => {
+          mainWindow.webContents.openDevTools({ mode: 'detach' });
+        }
+      },
+      {
+        label: '🔄 Recarregar',
+        accelerator: 'CmdOrCtrl+R',
+        click: () => {
+          mainWindow.reload();
+        }
+      },
+      { type: 'separator' },
+      {
+        label: '📋 Copiar',
+        accelerator: 'CmdOrCtrl+C',
+        role: 'copy',
+        enabled: params.selectionText.length > 0
+      },
+      {
+        label: '📄 Colar',
+        accelerator: 'CmdOrCtrl+V',
+        role: 'paste'
+      },
+      { type: 'separator' },
+      {
+        label: '❌ Fechar DevTools',
+        click: () => {
+          mainWindow.webContents.closeDevTools();
+        }
+      }
+    ]);
+
+    contextMenu.popup();
+  });
+
+  // ⌨️ ATALHOS DE TECLADO para DevTools
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // F12 para abrir/fechar DevTools
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+      }
+    }
+
+    // Ctrl+Shift+I (ou Cmd+Shift+I no Mac) para abrir/fechar DevTools
+    if ((input.control || input.meta) && input.shift && input.key === 'I' && input.type === 'keyDown') {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+      }
+    }
+
+    // Ctrl+Shift+C (ou Cmd+Shift+C no Mac) para modo inspecionar
+    if ((input.control || input.meta) && input.shift && input.key === 'C' && input.type === 'keyDown') {
+      mainWindow.webContents.openDevTools({ mode: 'detach', activate: true });
+      mainWindow.webContents.devToolsWebContents?.executeJavaScript('DevToolsAPI.enterInspectElementMode()');
+    }
+  });
 }
 
 app.whenReady().then(createWindow);
