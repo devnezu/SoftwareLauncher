@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cores Profundas "Enterprise" */
+    --background: 240 10% 3.9%;     /* #09090b - Zinc 950 */
+    --foreground: 0 0% 98%;         /* #fafafa */
+    
+    --card: 240 10% 5%;             /* Um pouco mais claro que o fundo */
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 0 0% 98%;            /* Branco puro para ações principais */
+    --primary-foreground: 240 5.9% 10%;
+    
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%; /* Zinc 500 */
+    
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 3.7% 15.9%;       /* Bordas sutis */
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    
+    --radius: 0.75rem;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-white/20;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden; /* App controla o scroll */
+  }
+}
+
+@layer components {
+  /* Cards Estilo Vidro/Premium */
+  .premium-card {
+    @apply bg-zinc-900/40 border border-white/5 rounded-xl shadow-lg transition-all duration-300;
+  }
+
+  .premium-card:hover {
+    @apply border-white/10 bg-zinc-900/60 shadow-xl scale-[1.01];
+  }
+
+  /* Inputs Minimalistas */
+  .premium-input {
+    @apply bg-zinc-950/50 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all placeholder:text-zinc-600;
+  }
+}
+
+/* Scrollbar Customizada Invisível/Sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-zinc-800/50 rounded-full hover:bg-zinc-700/80 transition-colors; }
