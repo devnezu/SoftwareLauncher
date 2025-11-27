@@ -23,6 +23,27 @@ const sessionPath = path.join(userDataPath, 'session.json');
 const runningProcesses = new Map(); 
 const runningProjects = new Map();
 
+// --- Single Instance Lock ---
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    createTray();
+  });
+}
+
 async function checkPort(port) {
   if (!port) return null;
   const platform = os.platform();
@@ -223,10 +244,7 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  createTray();
-});
+// app.whenReady().then moved to Single Instance Lock block above
 
 app.on('before-quit', async (e) => {
   if (runningProcesses.size > 0 && !isQuitting) {
