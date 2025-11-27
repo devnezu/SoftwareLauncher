@@ -1,8 +1,11 @@
 import { useMemo } from 'react'
 
+const { ipcRenderer } = window.require ? window.require('electron') : {ipcRenderer: null}
+
 interface AnsiTextProps {
   children: string
   className?: string
+  currentProjectRoot?: string // Add current project root to resolving relative paths if needed
 }
 
 // Mapeamento de cores ANSI para Tailwind
@@ -36,73 +39,130 @@ const ansiStyles: Record<string, string> = {
   '22': 'font-normal',       // Negrito desligado
 }
 
-// ALTERAÇÃO AQUI: Mudado de React.FC para function normal para evitar conflito de tipos
-export function AnsiText({ children, className = '' }: AnsiTextProps) {
+// Regex to capture file paths with line/column numbers
+// Matches: /abs/path/to/file.ts:10:5 or src/file.js:10
+// We need to be careful not to match random text.
+// Strategy: Look for specific extension or / at start, followed by :line(:col)?
+const filePathRegex = /((?:[a-zA-Z]:\\|\/|[\w.-]+\/)[\w.-]+\.[a-zA-Z0-9]+):(\d+)(?::(\d+))?/g;
+
+export function AnsiText({ children, className = '', currentProjectRoot }: AnsiTextProps) {
   const parsedContent = useMemo(() => {
     if (!children) return []
 
-    // Primeiro, remover códigos de controle de cursor (K, G, H, J, etc.)
-    // Esses códigos controlam posição do cursor e limpeza, não fazem sentido em UI web
+    // 1. Remove control codes
     let cleanText = children.replace(/\x1B\[[\d;]*[A-HJKSTfhilmnsu]/g, '')
 
-    // Regex para detectar códigos ANSI de cor/estilo: \x1B[...m
+    // 2. Split by ANSI codes
     const ansiRegex = /\x1B\[([0-9;]+)m/g
-
     const parts: Array<{ text: string; classes: string[] }> = []
     let lastIndex = 0
     let currentClasses: string[] = []
 
     let match
     while ((match = ansiRegex.exec(cleanText)) !== null) {
-      // Adicionar texto antes do código ANSI
       if (match.index > lastIndex) {
         const text = cleanText.substring(lastIndex, match.index)
         parts.push({ text, classes: [...currentClasses] })
       }
 
-      // Processar código ANSI
       const codes = match[1].split(';')
-
       for (const code of codes) {
         if (code === '0' || code === '39' || code === '22') {
-          // Reset
           currentClasses = []
         } else if (ansiColors[code]) {
-          // Remover cores antigas e adicionar nova cor
           currentClasses = currentClasses.filter(c => !c.startsWith('text-'))
           currentClasses.push(ansiColors[code])
         } else if (ansiStyles[code]) {
-          // Adicionar estilo
           if (!currentClasses.includes(ansiStyles[code])) {
             currentClasses.push(ansiStyles[code])
           }
         }
       }
-
       lastIndex = ansiRegex.lastIndex
     }
 
-    // Adicionar texto restante
     if (lastIndex < cleanText.length) {
       const text = cleanText.substring(lastIndex)
       parts.push({ text, classes: [...currentClasses] })
     }
 
-    return parts
+    // 3. Process links in each text part
+    const finalParts: Array<{ text: string; classes: string[]; isLink?: boolean; path?: string; line?: number }> = [];
+    
+    parts.forEach(part => {
+        let lastLinkIndex = 0;
+        let linkMatch;
+        // We need to use a new regex object or reset lastIndex because we are inside a loop
+        const regex = new RegExp(filePathRegex);
+        
+        while ((linkMatch = regex.exec(part.text)) !== null) {
+            if (linkMatch.index > lastLinkIndex) {
+                finalParts.push({ 
+                    text: part.text.substring(lastLinkIndex, linkMatch.index), 
+                    classes: part.classes 
+                });
+            }
+            
+            const fullMatch = linkMatch[0];
+            const filePath = linkMatch[1];
+            const line = parseInt(linkMatch[2]);
+            
+            finalParts.push({
+                text: fullMatch,
+                classes: [...part.classes, 'text-blue-400', 'underline', 'cursor-pointer', 'hover:text-blue-300'],
+                isLink: true,
+                path: filePath,
+                line: line
+            });
+            
+            lastLinkIndex = linkMatch.index + fullMatch.length;
+        }
+        
+        if (lastLinkIndex < part.text.length) {
+            finalParts.push({
+                text: part.text.substring(lastLinkIndex),
+                classes: part.classes
+            });
+        }
+    });
+
+    return finalParts
   }, [children])
 
-  if (!parsedContent.length) {
-    // Se não há códigos ANSI, ainda assim remover códigos de controle
-    const cleanText = children.replace(/\x1B\[[\d;]*[A-HJKSTfhilmnsu]/g, '')
-    return <span className={className}>{cleanText}</span>
+  const handleLinkClick = async (path: string, line: number) => {
+     if(ipcRenderer) {
+         // Resolve relative path if needed, but usually compilers output helpful paths or we try direct.
+         // If path is relative and we have project root, pre-pend.
+         let finalPath = path;
+         if (currentProjectRoot && !path.startsWith('/') && !path.match(/^[a-zA-Z]:/)) {
+            // It's relative
+            // We'll rely on VS Code opening it relative to workspace if we pass relative, 
+            // but providing absolute is safer.
+            // For now, try sending as is.
+         }
+         await ipcRenderer.invoke('open-file-at-line', finalPath, line);
+     }
   }
+
+  if (!parsedContent.length) return <span className={className}>{children}</span>
 
   return (
     <span className={className}>
       {parsedContent.map((part, index) => (
-        <span key={index} className={part.classes.join(' ')}>
-          {part.text}
-        </span>
+        part.isLink ? (
+            <span 
+                key={index} 
+                className={part.classes.join(' ')} 
+                onClick={(e) => { e.stopPropagation(); if(part.path && part.line) handleLinkClick(part.path, part.line); }}
+                title={`Open ${part.path} at line ${part.line}`}
+            >
+                {part.text}
+            </span>
+        ) : (
+            <span key={index} className={part.classes.join(' ')}>
+                {part.text}
+            </span>
+        )
       ))}
     </span>
   )

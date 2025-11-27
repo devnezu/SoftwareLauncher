@@ -16,6 +16,8 @@ export interface Project {
   description?: string
   tasks: Task[]
   environmentVariables?: Record<string, string>
+  contextPresets?: { name: string; files: string[] }[]
+  hiddenContextPaths?: string[]
 }
 
 export interface Task {
@@ -25,6 +27,8 @@ export interface Task {
   envFilePath?: string
   envVariables?: Record<string, EnvVariableConfig>
   executionMode?: 'internal' | 'external'
+  icon?: string
+  port?: number
   healthCheck?: {
     enabled: boolean
     url: string

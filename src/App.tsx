@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Play, Square, Cog, Folder, Terminal, Plus, X,
-  Cpu, HardDrive, Search, Trash2, RotateCw
+  Cpu, HardDrive, Search, Trash2, RotateCw, FileCode, ExternalLink, LayoutDashboard
 } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './components/ui/dialog'
@@ -12,6 +12,8 @@ import { TitleBar } from './components/TitleBar'
 import { Home } from './components/Home'
 import { Sidebar } from './components/Sidebar'
 import { AnsiText } from './components/AnsiText'
+import { ContextPanel } from './components/ContextPanel'
+import { CommandPalette } from './components/CommandPalette'
 import { DynamicIcon, IconPicker } from './components/IconManager'
 import { cn } from './lib/utils'
 import { Project, Task } from './types'
@@ -28,6 +30,7 @@ function normalizeTask(task: any): Task {
     envVariables: task.envVariables,
     executionMode: task.executionMode || 'internal',
     icon: task.icon || 'Terminal',
+    port: task.port ? parseInt(task.port) : undefined,
     healthCheck: task.healthCheck ? {
       enabled: task.healthCheck.enabled ?? false,
       url: task.healthCheck.url || '',
@@ -41,6 +44,7 @@ function normalizeTask(task: any): Task {
 
 function App() {
   const [view, setView] = useState<'home' | 'project'>('home')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'context'>('dashboard')
   const [projects, setProjects] = useState<Project[]>([])
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [runningProjects, setRunningProjects] = useState<Set<string>>(new Set())
@@ -50,7 +54,6 @@ function App() {
   const restartingTasks = useRef<Set<string>>(new Set())
 
   const [metrics, setMetrics] = useState<any>(null)
-  const [  , setMetricsHistory] = useState<any[]>([])
   
   const [healthStatus, setHealthStatus] = useState<any[]>([])
   const [activeConsoleTab, setActiveConsoleTab] = useState<string>('all')
@@ -58,17 +61,30 @@ function App() {
   const consoleEndRef = useRef<HTMLDivElement>(null)
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [portConflict, setPortConflict] = useState<{taskName: string, port: number, pid: number} | null>(null)
+  
+  // Form State
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
   const [formIcon, setFormIcon] = useState('Box')
   const [formTasks, setFormTasks] = useState<Task[]>([])
   const [editingProject, setEditingProject] = useState<Project | null>(null)
 
-  // --- Initialization Logic ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault()
+            setPaletteOpen(prev => !prev)
+        }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   useEffect(() => {
     const init = async () => {
       if (ipcRenderer) {
-        // 1. Load Projects
         const loaded = await ipcRenderer.invoke('load-projects')
         const normalizedProjects = loaded.map((proj: any) => ({
           ...proj,
@@ -77,15 +93,10 @@ function App() {
         }))
         setProjects(normalizedProjects)
 
-        // 2. Check Backend Session (Sync Running State)
-        // Nota: O backend limpa runningProjects ao fechar, então isso será vazio inicialmente
-        // a menos que implementemos persistência profunda de processos (complexo).
-        // Mas podemos recuperar o "Último Projeto Aberto" via localStorage para UX.
         const session = await ipcRenderer.invoke('check-running-session');
         const runningSet = new Set<string>(session.runningProjectIds || []);
         setRunningProjects(runningSet);
 
-        // 3. Restore Last View
         const lastProjectId = localStorage.getItem('lastActiveProjectId');
         if (lastProjectId) {
             const lastProj = normalizedProjects.find((p: Project) => p.id === lastProjectId);
@@ -100,7 +111,6 @@ function App() {
     init()
   }, [])
 
-  // --- Persist View State ---
   useEffect(() => {
     if (currentProject) {
         localStorage.setItem('lastActiveProjectId', currentProject.id);
@@ -109,18 +119,14 @@ function App() {
     }
   }, [currentProject]);
 
-  // --- Auto-Scroll Console ---
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [projectConsoles, activeConsoleTab, currentProject])
 
-  // --- Reset Local State on Project Change ---
   useEffect(() => {
     setTaskStates({})
     setMetrics(null)
-    setMetricsHistory([])
     if(currentProject && runningProjects.has(currentProject.id)) {
-        // Se o backend diz que está rodando, assumimos todas as tasks (simplificação visual)
         const initialStates: Record<string, boolean> = {}
         currentProject.tasks.forEach(t => {
             if(t.executionMode !== 'external') initialStates[t.name] = true
@@ -129,7 +135,6 @@ function App() {
     }
   }, [currentProject])
 
-  // --- IPC Listeners ---
   useEffect(() => {
     if (!ipcRenderer) return
 
@@ -166,14 +171,6 @@ function App() {
     const handleMetrics = (_: any, data: any) => {
         if (currentProject && data.projectId === currentProject.id) {
             setMetrics(data)
-            setMetricsHistory(prev => {
-                const newHistory = [...prev, { 
-                    timestamp: data.timestamp, 
-                    cpu: parseFloat(data.cpu), 
-                    memory: parseFloat(data.memory) 
-                }];
-                return newHistory.length > 30 ? newHistory.slice(1) : newHistory;
-            });
         }
     }
 
@@ -188,7 +185,6 @@ function App() {
     const handleProcessClosed = (_: any, data: any) => {
         if (currentProject && data.projectId === currentProject.id) {
             if (restartingTasks.current.has(data.taskName)) {
-                console.log(`Ignoring close event for restarting task: ${data.taskName}`)
                 return;
             }
 
@@ -203,9 +199,6 @@ function App() {
                 }]}
             })
         }
-        
-        // Se foi a última task, atualiza runningProjects
-        // (O backend já gerencia isso, mas o frontend precisa refletir se não tiver metrics chegando)
     }
 
     ipcRenderer.on('process-output', handleOutput)
@@ -225,7 +218,6 @@ function App() {
     if (!currentProject || !ipcRenderer) return
     setProjectConsoles(prev => ({ ...prev, [currentProject.id]: [] }))
     setMetrics(null)
-    setMetricsHistory([]) 
     setHealthStatus([])
     
     const result = await ipcRenderer.invoke('launch-project', currentProject, 'development')
@@ -269,12 +261,28 @@ function App() {
         await ipcRenderer.invoke('stop-task', currentProject.id, taskName);
         setTaskStates(prev => ({ ...prev, [taskName]: false }));
     } else {
-        await ipcRenderer.invoke('start-task', currentProject, taskName);
-        setTaskStates(prev => ({ ...prev, [taskName]: true }));
-        if (!runningProjects.has(currentProject.id)) {
-            setRunningProjects(prev => new Set(prev).add(currentProject.id))
+        const result = await ipcRenderer.invoke('start-task', currentProject, taskName);
+        if (result && !result.success && result.error === 'PORT_IN_USE') {
+           setPortConflict({ taskName, port: result.port, pid: result.pid });
+           return;
+        }
+        
+        if (result && result.success) {
+           setTaskStates(prev => ({ ...prev, [taskName]: true }));
+           if (!runningProjects.has(currentProject.id)) {
+               setRunningProjects(prev => new Set(prev).add(currentProject.id))
+           }
         }
     }
+  }
+
+  const handleResolveConflict = async () => {
+    if (!portConflict || !ipcRenderer) return;
+    await ipcRenderer.invoke('kill-process-by-pid', portConflict.pid);
+    const taskToRestart = portConflict.taskName;
+    setPortConflict(null);
+    // Short delay to ensure port is free
+    setTimeout(() => handleToggleTask(taskToRestart), 500);
   }
 
   const handleRestartTask = async (taskName: string) => {
@@ -295,7 +303,6 @@ function App() {
         setTaskStates(prev => ({ ...prev, [taskName]: true }));
     } else {
         setTaskStates(prev => ({ ...prev, [taskName]: false }));
-        console.error("Failed to restart:", result.error);
     }
   }
 
@@ -344,6 +351,19 @@ function App() {
     if(currentProject?.id === proj.id) setCurrentProject(proj)
   }
 
+  const handleUpdateProject = async (updatedProject: Project) => {
+    const newProjs = projects.map(p => p.id === updatedProject.id ? updatedProject : p)
+    setProjects(newProjs)
+    setCurrentProject(updatedProject)
+    if (ipcRenderer) await ipcRenderer.invoke('save-projects', newProjs)
+  }
+
+  const handleOpenIDE = async () => {
+    if(!currentProject || !ipcRenderer) return
+    const dir = currentProject.tasks[0]?.workingDirectory
+    if(dir) await ipcRenderer.invoke('open-in-ide', dir)
+  }
+
   if (isLoading) return null
 
   return (
@@ -356,7 +376,7 @@ function App() {
           projects={projects}
           currentProject={currentProject}
           runningProjects={runningProjects}
-          onSelectProject={(p) => { setCurrentProject(p); setView(p ? 'project' : 'home') }}
+          onSelectProject={(p) => { setCurrentProject(p); setView(p ? 'project' : 'home'); setActiveTab('dashboard'); }}
           onNewProject={() => { 
              setEditingProject(null); setFormName(''); setFormDescription(''); setFormIcon('Box'); setFormTasks([]); 
              setModalOpen(true) 
@@ -370,36 +390,57 @@ function App() {
             <Home 
               projects={projects}
               runningProjects={runningProjects}
-              onSelectProject={(p: Project) => { setCurrentProject(p); setView('project') }}
+              onSelectProject={(p: Project) => { setCurrentProject(p); setView('project'); setActiveTab('dashboard'); }}
               onNewProject={() => { setEditingProject(null); setModalOpen(true) }}
             />
           ) : (
             <div className="flex flex-col h-full animate-enter relative z-10">
-              {/* Header */}
+              {/* Project Header */}
               <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/40 backdrop-blur-md z-20">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-                    <DynamicIcon name={currentProject.icon || 'Box'} className="w-6 h-6 text-zinc-200" />
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                        <DynamicIcon name={currentProject.icon || 'Box'} className="w-6 h-6 text-zinc-200" />
+                    </div>
+                    <div className="flex flex-col">
+                        <h1 className="text-xl font-semibold tracking-tight text-zinc-100 flex items-center gap-3">
+                            {currentProject.name}
+                            {runningProjects.has(currentProject.id) && (
+                                <span className="flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                            )}
+                        </h1>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <h1 className="text-xl font-semibold tracking-tight text-zinc-100 flex items-center gap-3">
-                        {currentProject.name}
-                        {runningProjects.has(currentProject.id) && (
-                            <span className="flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                            </span>
+
+                  <div className="h-8 w-[1px] bg-white/10" />
+
+                  {/* Tabs */}
+                  <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-lg border border-white/5">
+                      <button 
+                        onClick={() => setActiveTab('dashboard')}
+                        className={cn("px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2", 
+                            activeTab === 'dashboard' ? "bg-zinc-700 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
                         )}
-                    </h1>
-                    <p className="text-xs text-zinc-500 font-medium max-w-[400px] truncate">
-                        {currentProject.description || "Development Environment"}
-                    </p>
+                      >
+                        <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('context')}
+                        className={cn("px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2", 
+                            activeTab === 'context' ? "bg-zinc-700 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
+                        )}
+                      >
+                        <FileCode className="w-3.5 h-3.5" /> Context
+                      </button>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-6">
-                   {metrics && (
-                     <div className="flex items-center gap-4 bg-zinc-900/50 border border-white/5 rounded-full px-5 py-2 shadow-sm">
+                   {metrics && activeTab === 'dashboard' && (
+                     <div className="flex items-center gap-4 bg-zinc-900/50 border border-white/5 rounded-full px-5 py-2 shadow-sm animate-in fade-in zoom-in duration-300">
                         <div className="flex items-center gap-2.5">
                             <Cpu className="w-3.5 h-3.5 text-indigo-400" />
                             <div className="flex flex-col leading-none">
@@ -421,6 +462,7 @@ function App() {
                    <div className="h-6 w-[1px] bg-white/10" />
 
                    <div className="flex gap-2">
+                        <Button variant="ghost" size="icon" onClick={handleOpenIDE} title="Open in VS Code" className="hover:bg-white/5 text-zinc-400 hover:text-blue-400"><ExternalLink className="w-4 h-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => {
                             setEditingProject(currentProject); setFormName(currentProject.name); 
                             setFormDescription(currentProject.description||''); 
@@ -442,6 +484,7 @@ function App() {
                 </div>
               </div>
 
+              {activeTab === 'dashboard' ? (
               <ScrollArea className="flex-1">
                 <div className="p-8 max-w-[1800px] mx-auto space-y-6">
                   
@@ -586,7 +629,7 @@ function App() {
                               log.type === 'system' ? 'text-indigo-400 font-medium italic' : 
                               'text-zinc-300'
                             )}>
-                              <AnsiText>{log.data}</AnsiText>
+                              <AnsiText currentProjectRoot={currentProject.tasks[0]?.workingDirectory}>{log.data}</AnsiText>
                             </span>
                           </div>
                         ))}
@@ -603,12 +646,14 @@ function App() {
 
                 </div>
               </ScrollArea>
+              ) : (
+                  <ContextPanel project={currentProject} onUpdateProject={handleUpdateProject} />
+              )}
             </div>
           )}
         </main>
       </div>
 
-      {/* Modal de Edição */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-5xl w-[95vw] h-[85vh] bg-[#09090b] border border-white/10 text-white p-0 gap-0 flex flex-col overflow-hidden shadow-2xl">
           <DialogHeader className="p-6 border-b border-white/5 bg-zinc-900/30 shrink-0 flex flex-row justify-between items-center">
@@ -700,17 +745,23 @@ function App() {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] text-zinc-500 ml-1">Command</label>
-                                            <Input value={task.command} onChange={e => { const n = [...formTasks]; n[idx].command = e.target.value; setFormTasks(n) }} className="premium-input h-9 font-mono text-xs text-emerald-400 bg-black/20" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] text-zinc-500 ml-1">Directory</label>
-                                            <div className="flex gap-2">
-                                                <Input value={task.workingDirectory} onChange={e => { const n = [...formTasks]; n[idx].workingDirectory = e.target.value; setFormTasks(n) }} className="premium-input h-9 text-xs flex-1 bg-black/20 text-zinc-400" />
-                                                <Button size="icon" variant="outline" className="h-9 w-9 shrink-0 border-white/10 bg-transparent hover:bg-white/5 hover:text-white hover:border-white/20" onClick={async () => { if(ipcRenderer) { const path = await ipcRenderer.invoke('select-directory'); if(path) { const n = [...formTasks]; n[idx].workingDirectory = path; setFormTasks(n) } } }}><Folder className="w-4 h-4" /></Button>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-zinc-500 ml-1">Command</label>
+                                                <Input value={task.command} onChange={e => { const n = [...formTasks]; n[idx].command = e.target.value; setFormTasks(n) }} className="premium-input h-9 font-mono text-xs text-emerald-400 bg-black/20" />
                                             </div>
-                                        </div>
+                                            <div className="grid grid-cols-[100px_1fr] gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] text-zinc-500 ml-1">Port</label>
+                                                    <Input type="number" placeholder="3000" value={task.port || ''} onChange={e => { const n = [...formTasks]; n[idx].port = parseInt(e.target.value) || undefined; setFormTasks(n) }} className="premium-input h-9 text-xs bg-black/20" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] text-zinc-500 ml-1">Directory</label>
+                                                    <div className="flex gap-2">
+                                                        <Input value={task.workingDirectory} onChange={e => { const n = [...formTasks]; n[idx].workingDirectory = e.target.value; setFormTasks(n) }} className="premium-input h-9 text-xs flex-1 bg-black/20 text-zinc-400" />
+                                                        <Button size="icon" variant="outline" className="h-9 w-9 shrink-0 border-white/10 bg-transparent hover:bg-white/5 hover:text-white hover:border-white/20" onClick={async () => { if(ipcRenderer) { const path = await ipcRenderer.invoke('select-directory'); if(path) { const n = [...formTasks]; n[idx].workingDirectory = path; setFormTasks(n) } } }}><Folder className="w-4 h-4" /></Button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                     </div>
                                 </div>
                             </div>
@@ -729,6 +780,36 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!portConflict} onOpenChange={(o) => !o && setPortConflict(null)}>
+         <DialogContent className="bg-zinc-950 border border-white/10 text-white">
+            <DialogHeader>
+                <DialogTitle>Port Occupied</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 text-sm text-zinc-400">
+                The port <span className="text-white font-mono font-bold">{portConflict?.port}</span> is currently being used by process PID <span className="text-white font-mono font-bold">{portConflict?.pid}</span>.
+                <br/><br/>
+                Would you like to kill this process and start <strong>{portConflict?.taskName}</strong>?
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setPortConflict(null)}>Cancel</Button>
+                <Button variant="destructive" onClick={handleResolveConflict}>Free & Start</Button>
+            </DialogFooter>
+         </DialogContent>
+      </Dialog>
+      
+      <CommandPalette 
+        open={paletteOpen} 
+        onOpenChange={setPaletteOpen}
+        projects={projects}
+        currentProject={currentProject}
+        onSelectProject={(p) => { setCurrentProject(p); setView('project'); setActiveTab('dashboard'); }}
+        onNavigateHome={() => { setView('home'); setCurrentProject(null); }}
+        onRunTask={(p, t) => handleToggleTask(t)}
+        onStopTask={(p, t) => handleToggleTask(t)}
+        runningProjects={runningProjects}
+        taskStates={taskStates}
+      />
     </div>
   )
 }

@@ -6,6 +6,7 @@ export interface Task {
   envVariables?: { [key: string]: { development: string; production: string } }
   executionMode?: 'internal' | 'external'
   icon?: string // Novo
+  port?: number
   healthCheck?: {
     enabled: boolean
     url: string
@@ -23,6 +24,8 @@ export interface Project {
   icon?: string // Novo
   tasks: Task[]
   environmentVariables?: Record<string, string>
+  contextPresets?: { name: string; files: string[] }[]
+  hiddenContextPaths?: string[]
 }
 
 export interface ConsoleLog {
