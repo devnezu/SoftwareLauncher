@@ -3,8 +3,11 @@ import { FileCode, Folder, Copy, Save, CheckSquare, Square, ChevronRight, Chevro
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { ScrollArea } from './ui/scroll-area'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog'
+import { useToast } from './ui/use-toast'
+import { ToastAction } from './ui/toast'
 import { Project } from '../types'
-import { cn } from '../lib/utils'
+import { cn, formatContextForClipboard } from '../lib/utils'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
 
@@ -210,6 +213,7 @@ const FileTreeNode = memo(({
 })
 
 export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
+  const { toast } = useToast()
   const [files, setFiles] = useState<string[]>([])
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -218,6 +222,7 @@ export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
   const [presetName, setPresetName] = useState('')
   const [stats, setStats] = useState({ count: 0, chars: 0 })
   const [showHidden, setShowHidden] = useState(false)
+  const [errorDetails, setErrorDetails] = useState<string | null>(null)
   
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: TreeNode } | null>(null)
@@ -250,6 +255,17 @@ export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
       const initialExpanded = new Set<string>()
       newTree.children.forEach(c => initialExpanded.add(c.path))
       setExpandedPaths(initialExpanded)
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Scan Failed",
+        description: `Could not scan directory: ${rootDir}`,
+        action: (
+          <ToastAction altText="Details" onClick={() => setErrorDetails(res.error)}>
+            Details
+          </ToastAction>
+        ),
+      })
     }
     setLoading(false)
   }
@@ -377,15 +393,11 @@ export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
     const paths = Array.from(selected)
     const res = await ipcRenderer.invoke('read-files-content', paths)
     if (res.success) {
-      let clipboardText = `Context for Project: ${project.name}\n\n`
-      let totalChars = 0
-      res.files.forEach((f: any) => {
-        const relativePath = f.path.replace(rootDir, '').replace(/^[\\/]/, '')
-        const ext = relativePath.split('.').pop() || 'txt'
-        clipboardText += `File: ${relativePath}\n\`\`\`${ext}\n${f.content}\n\`\`\`\n\n`
-        totalChars += f.size
-      })
+      const clipboardText = formatContextForClipboard(project.name, res.files, rootDir)
       await navigator.clipboard.writeText(clipboardText)
+      
+      let totalChars = 0
+      res.files.forEach((f: any) => totalChars += f.size)
       setStats(prev => ({ ...prev, chars: totalChars }))
     }
   }
@@ -413,28 +425,28 @@ export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
   return (
     <div className="flex flex-1 min-h-0 gap-6 p-8 max-w-[1800px] w-full mx-auto relative">
       {/* File Tree */}
-      <div className="flex-1 flex flex-col min-w-0 bg-zinc-900/30 border border-white/5 rounded-xl overflow-hidden relative">
-        <div className="p-4 border-b border-white/5 bg-zinc-900/50 flex justify-between items-center">
+      <div className="flex-1 flex flex-col min-w-0 bg-white/50 dark:bg-zinc-900/30 border border-border rounded-xl overflow-hidden relative shadow-sm">
+        <div className="p-4 border-b border-border bg-zinc-50/50 dark:bg-zinc-900/50 flex justify-between items-center">
              <div className="flex items-center gap-4">
-                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">File Explorer</span>
+                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">File Explorer</span>
                  <button 
                     onClick={() => setShowHidden(!showHidden)}
                     className={cn(
                         "text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1",
                         showHidden 
-                            ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" 
-                            : "bg-transparent text-zinc-600 border-transparent hover:text-zinc-400"
+                            ? "bg-indigo-500/10 text-indigo-500 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30" 
+                            : "bg-transparent text-muted-foreground border-transparent hover:text-foreground"
                     )}
                  >
                     {showHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                     {showHidden ? 'Hide Ignored' : 'Show Ignored'}
                  </button>
              </div>
-             <Button variant="ghost" size="sm" onClick={loadFiles} className="h-6 w-6 p-0"><ExternalLink className="w-3 h-3" /></Button>
+             <Button variant="ghost" size="sm" onClick={loadFiles} className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"><ExternalLink className="w-3 h-3" /></Button>
         </div>
-        <ScrollArea className="flex-1 p-2">
+        <ScrollArea className="flex-1 p-2 bg-white/30 dark:bg-transparent">
             {loading ? (
-                <div className="text-zinc-500 text-xs p-4 text-center">Scanning files...</div>
+                <div className="text-muted-foreground text-xs p-4 text-center">Scanning files...</div>
             ) : tree ? (
                 <FileTreeNode 
                     node={tree} 
@@ -448,7 +460,7 @@ export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
                     onContextMenu={handleContextMenu}
                 />
             ) : (
-                <div className="text-zinc-500 text-xs p-4 text-center">No files found.</div>
+                <div className="text-muted-foreground text-xs p-4 text-center">No files found.</div>
             )}
         </ScrollArea>
 
@@ -457,94 +469,110 @@ export function ContextPanel({ project, onUpdateProject }: ContextPanelProps) {
             <div 
                 ref={contextMenuRef}
                 style={{ top: contextMenu.y, left: contextMenu.x }}
-                className="fixed z-50 bg-[#18181b] border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
+                className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
             >
-                <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5 mb-1 truncate max-w-[200px]">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1 truncate max-w-[200px]">
                     {contextMenu.node.name}
                 </div>
-                <button onClick={handleContextSelectAll} className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                <button onClick={handleContextSelectAll} className="w-full text-left px-3 py-1.5 text-xs text-popover-foreground hover:bg-accent flex items-center gap-2">
                     <CheckSquare className="w-3.5 h-3.5" /> Select All
                 </button>
-                <button onClick={handleContextDeselectAll} className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                <button onClick={handleContextDeselectAll} className="w-full text-left px-3 py-1.5 text-xs text-popover-foreground hover:bg-accent flex items-center gap-2">
                     <Square className="w-3.5 h-3.5" /> Deselect All
                 </button>
-                <div className="h-[1px] bg-white/5 my-1" />
-                <button onClick={handleContextExpand} className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                <div className="h-[1px] bg-border my-1" />
+                <button onClick={handleContextExpand} className="w-full text-left px-3 py-1.5 text-xs text-popover-foreground hover:bg-accent flex items-center gap-2">
                     <FolderOpen className="w-3.5 h-3.5" /> Open
                 </button>
-                <button onClick={handleContextCollapse} className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                <button onClick={handleContextCollapse} className="w-full text-left px-3 py-1.5 text-xs text-popover-foreground hover:bg-accent flex items-center gap-2">
                     <FolderClosed className="w-3.5 h-3.5" /> Close
                 </button>
             </div>
         )}
       </div>
 
-      {/* Sidebar: Actions & Presets (unchanged structure, just renders) */}
+      {/* Sidebar: Actions & Presets */}
       <div className="w-[300px] flex flex-col gap-6">
-          <div className="premium-card p-5 space-y-4 bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-500/20">
+          <div className="premium-card p-5 space-y-4 bg-gradient-to-br from-indigo-50/50 to-transparent dark:from-indigo-500/10 border-indigo-100 dark:border-indigo-500/20">
               <div>
-                  <h3 className="text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">Selected Context</h3>
-                  <div className="text-2xl font-mono text-white">{stats.count} <span className="text-sm text-zinc-500 font-sans">files</span></div>
-                  {stats.chars > 0 && <div className="text-xs text-zinc-400 mt-1">~{Math.round(stats.chars/1024)} KB copied</div>}
+                  <h3 className="text-indigo-500 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">Selected Context</h3>
+                  <div className="text-2xl font-mono text-foreground">{stats.count} <span className="text-sm text-muted-foreground font-sans">files</span></div>
+                  {stats.chars > 0 && <div className="text-xs text-muted-foreground mt-1">~{Math.round(stats.chars/1024)} KB copied</div>}
               </div>
               <div className="flex gap-2">
                   <Button onClick={handleCopy} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20">
                       <Copy className="w-4 h-4 mr-2" /> Copy
                   </Button>
-                  <Button variant="outline" size="icon" onClick={handleClear} title="Clear Selection" className="border-indigo-500/20 text-indigo-200 hover:bg-indigo-500/10 hover:text-white">
+                  <Button variant="outline" size="icon" onClick={handleClear} title="Clear Selection" className="border-indigo-200 dark:border-indigo-500/20 text-indigo-400 dark:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-white">
                       <Eraser className="w-4 h-4" />
                   </Button>
               </div>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0 bg-zinc-900/30 border border-white/5 rounded-xl overflow-hidden">
-             <div className="p-4 border-b border-white/5 bg-zinc-900/50">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Presets</span>
+          <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-zinc-900/30 border border-border rounded-xl overflow-hidden shadow-sm">
+             <div className="p-4 border-b border-border bg-zinc-50/50 dark:bg-zinc-900/50">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Presets</span>
              </div>
              
-             <div className="p-4 border-b border-white/5 space-y-2">
+             <div className="p-4 border-b border-border space-y-2">
                  <div className="flex gap-2">
                     <Input 
                         placeholder="Preset Name" 
                         value={presetName} 
                         onChange={e => setPresetName(e.target.value)} 
-                        className="h-8 text-xs bg-black/20 border-white/10"
+                        className="h-8 text-xs bg-white dark:bg-black/20 border-input"
                     />
-                    <Button size="sm" onClick={savePreset} disabled={!presetName || selected.size === 0} className="h-8 bg-white/10 hover:bg-white/20">
+                    <Button size="sm" onClick={savePreset} disabled={!presetName || selected.size === 0} className="h-8 bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 text-foreground">
                         <Save className="w-3.5 h-3.5" />
                     </Button>
                  </div>
              </div>
 
-             <ScrollArea className="flex-1 p-2">
+             <ScrollArea className="flex-1 p-2 bg-white/30 dark:bg-transparent">
                 <div className="space-y-1">
                     {project.contextPresets?.map((preset, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 group">
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent group transition-colors">
                             <button 
                                 onClick={() => loadPreset(preset)}
-                                className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white truncate flex-1 text-left"
+                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground truncate flex-1 text-left"
                             >
                                 <FileText className="w-3.5 h-3.5" />
                                 {preset.name}
-                                <span className="text-[10px] text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded ml-auto">
+                                <span className="text-[10px] text-muted-foreground bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded ml-auto border border-border">
                                     {preset.files.length}
                                 </span>
                             </button>
                             <button 
                                 onClick={() => deletePreset(i)}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all"
+                                className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 transition-all"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
                         </div>
                     ))}
                     {(!project.contextPresets || project.contextPresets.length === 0) && (
-                        <div className="text-[10px] text-zinc-600 text-center py-4">No presets saved</div>
+                        <div className="text-[10px] text-muted-foreground text-center py-4">No presets saved</div>
                     )}
                 </div>
              </ScrollArea>
           </div>
       </div>
+
+      <Dialog open={!!errorDetails} onOpenChange={(o) => !o && setErrorDetails(null)}>
+        <DialogContent className="max-w-3xl bg-background border border-destructive/20 text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Scan Error Details</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] mt-4">
+            <pre className="text-xs font-mono text-muted-foreground p-4 bg-muted rounded-lg whitespace-pre-wrap break-all border border-border">
+              {errorDetails}
+            </pre>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setErrorDetails(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

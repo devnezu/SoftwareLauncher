@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Play, Square, Home, RotateCw, CornerDownLeft } from 'lucide-react'
+import { Search, Play, Square, Home, RotateCw, CornerDownLeft, Copy } from 'lucide-react'
 import { Dialog, DialogContent } from './ui/dialog'
 import { Project } from '../types'
 import { cn } from '../lib/utils'
@@ -13,13 +13,14 @@ interface CommandPaletteProps {
   onRunTask: (project: Project, taskName: string) => void
   onStopTask: (project: Project, taskName: string) => void
   onNavigateHome: () => void
+  onCopyContext: (preset: { name: string, files: string[] }) => void
   runningProjects: Set<string>
   taskStates: Record<string, boolean>
 }
 
 type CommandItem = {
   id: string
-  type: 'project' | 'task' | 'global'
+  type: 'project' | 'task' | 'global' | 'context'
   title: string
   subtitle?: string
   icon: any
@@ -43,6 +44,7 @@ export function CommandPalette({
   onRunTask, 
   onStopTask,
   onNavigateHome,
+  onCopyContext,
   runningProjects,
   taskStates
 }: CommandPaletteProps) {
@@ -71,6 +73,23 @@ export function CommandPalette({
               meta: { isRunning }
           })
       })
+
+      // Context Presets
+      if (currentProject.contextPresets) {
+          currentProject.contextPresets.forEach((preset, idx) => {
+              items.push({
+                  id: `ctx-${idx}`,
+                  type: 'context',
+                  title: `Copy Context: ${preset.name}`,
+                  subtitle: `${preset.files.length} files`,
+                  icon: Copy,
+                  action: () => {
+                      onCopyContext(preset)
+                      onOpenChange(false)
+                  }
+              })
+          })
+      }
   }
 
   // 2. Navigation (Projects)
@@ -158,18 +177,18 @@ export function CommandPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl p-0 gap-0 bg-[#121214] border-zinc-800 text-zinc-100 overflow-hidden shadow-2xl top-[20%] translate-y-0">
-        <div className="flex items-center px-4 py-3 border-b border-white/5">
-            <Search className="w-5 h-5 text-zinc-500 mr-3" />
+      <DialogContent className="max-w-xl p-0 gap-0 bg-popover border-border text-popover-foreground overflow-hidden shadow-2xl top-[20%] translate-y-0">
+        <div className="flex items-center px-4 py-3 border-b border-border">
+            <Search className="w-5 h-5 text-muted-foreground mr-3" />
             <input 
-                className="flex-1 bg-transparent border-none outline-none text-lg text-zinc-200 placeholder:text-zinc-600 font-light"
+                className="flex-1 bg-transparent border-none outline-none text-lg text-foreground placeholder:text-muted-foreground font-light"
                 placeholder="Type a command or search..."
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 autoFocus
             />
             <div className="flex items-center gap-1">
-                <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400 opacity-100">
+                <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                     ESC
                 </kbd>
             </div>
@@ -177,46 +196,46 @@ export function CommandPalette({
         
         <div className="max-h-[300px] overflow-y-auto p-2" ref={listRef}>
             {filteredItems.length === 0 ? (
-                <div className="py-6 text-center text-sm text-zinc-500">No results found.</div>
+                <div className="py-6 text-center text-sm text-muted-foreground">No results found.</div>
             ) : (
                 filteredItems.map((item, index) => (
                     <div 
                         key={item.id}
                         className={cn(
                             "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors group",
-                            index === selectedIndex ? "bg-indigo-600/10" : "hover:bg-zinc-800/50"
+                            index === selectedIndex ? "bg-indigo-50 dark:bg-indigo-500/10" : "hover:bg-accent"
                         )}
                         onClick={() => item.action()}
                         onMouseEnter={() => setSelectedIndex(index)}
                     >
                         <div className={cn(
                             "p-2 rounded-md", 
-                            index === selectedIndex ? "bg-indigo-600/20 text-indigo-400" : "bg-zinc-800 text-zinc-400"
+                            index === selectedIndex ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400" : "bg-muted text-muted-foreground"
                         )}>
                             <item.icon className="w-4 h-4" />
                         </div>
                         
                         <div className="flex-1 flex flex-col justify-center">
-                            <span className={cn("text-sm font-medium", index === selectedIndex ? "text-indigo-200" : "text-zinc-300")}>
+                            <span className={cn("text-sm font-medium", index === selectedIndex ? "text-indigo-700 dark:text-indigo-200" : "text-foreground dark:text-zinc-300")}>
                                 {item.title}
                             </span>
                             {item.subtitle && (
-                                <span className="text-[10px] text-zinc-500">
+                                <span className="text-[10px] text-muted-foreground">
                                     {item.subtitle}
                                 </span>
                             )}
                         </div>
                         
                         {index === selectedIndex && (
-                            <CornerDownLeft className="w-4 h-4 text-zinc-500 animate-in fade-in slide-in-from-right-1" />
+                            <CornerDownLeft className="w-4 h-4 text-muted-foreground animate-in fade-in slide-in-from-right-1" />
                         )}
                     </div>
                 ))
             )}
         </div>
         
-        <div className="px-4 py-2 bg-zinc-900/50 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-500">
-             <span>ProTip: Use <kbd className="font-mono text-zinc-400">↑</kbd> <kbd className="font-mono text-zinc-400">↓</kbd> to navigate</span>
+        <div className="px-4 py-2 bg-muted/50 border-t border-border flex justify-between items-center text-[10px] text-muted-foreground">
+             <span>ProTip: Use <kbd className="font-mono text-foreground">↑</kbd> <kbd className="font-mono text-foreground">↓</kbd> to navigate</span>
              <span>Software Launcher v1.0</span>
         </div>
       </DialogContent>

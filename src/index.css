@@ -6,59 +6,93 @@
 
 @layer base {
   :root {
-    /* Cores Profundas "Enterprise" */
+    /* Light Mode */
+    --background: 0 0% 98%;       /* #fafafa - Zinc 50 */
+    --foreground: 240 10% 3.9%;   /* #09090b - Zinc 950 */
+    
+    --card: 0 0% 100%;            /* #ffffff */
+    --card-foreground: 240 10% 3.9%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    
+    --muted: 240 4.8% 95.9%;      /* #f4f4f5 - Zinc 100 */
+    --muted-foreground: 240 3.8% 46.1%; /* #71717a - Zinc 500 */
+    
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 5.9% 90%;       /* #e4e4e7 - Zinc 200 */
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark Mode - Enterprise Zinc */
     --background: 240 10% 3.9%;     /* #09090b - Zinc 950 */
     --foreground: 0 0% 98%;         /* #fafafa */
     
-    --card: 240 10% 5%;             /* Um pouco mais claro que o fundo */
+    --card: 240 10% 5%;             
     --card-foreground: 0 0% 98%;
     
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
     
-    --primary: 0 0% 98%;            /* Branco puro para ações principais */
+    --primary: 0 0% 98%;
     --primary-foreground: 240 5.9% 10%;
     
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
     --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%; /* Zinc 500 */
+    --muted-foreground: 240 5% 64.9%; 
     
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
     
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 240 3.7% 15.9%;       /* Bordas sutis */
+    --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
-    
-    --radius: 0.75rem;
   }
 
   body {
-    @apply bg-background text-foreground antialiased selection:bg-white/20;
+    @apply bg-background text-foreground antialiased selection:bg-indigo-500/30;
     font-family: 'Inter', sans-serif;
-    overflow: hidden; /* App controla o scroll */
+    overflow: hidden; 
   }
 }
 
 @layer components {
   /* Cards Estilo Vidro/Premium */
   .premium-card {
-    @apply bg-zinc-900/40 border border-white/5 rounded-xl shadow-lg transition-all duration-300;
+    @apply bg-card border border-border rounded-xl shadow-sm transition-all duration-300 dark:bg-zinc-900/40 dark:border-white/5 dark:shadow-lg;
   }
 
   .premium-card:hover {
-    @apply border-white/10 bg-zinc-900/60 shadow-xl scale-[1.01];
+    @apply shadow-md scale-[1.01] dark:border-white/10 dark:bg-zinc-900/60 dark:shadow-xl;
   }
 
   /* Inputs Minimalistas */
   .premium-input {
-    @apply bg-zinc-950/50 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all placeholder:text-zinc-600;
+    @apply bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-all placeholder:text-muted-foreground dark:bg-zinc-950/50 dark:border-white/10;
   }
 }
 
 /* Scrollbar Customizada Invisível/Sutil */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { @apply bg-zinc-800/50 rounded-full hover:bg-zinc-700/80 transition-colors; }
+::-webkit-scrollbar-thumb { @apply bg-zinc-300 dark:bg-zinc-800/50 rounded-full hover:bg-zinc-400 dark:hover:bg-zinc-700/80 transition-colors; }

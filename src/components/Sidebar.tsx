@@ -1,9 +1,11 @@
-import { Plus, LayoutDashboard, Terminal } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Terminal, ChevronRight, ChevronLeft, LayoutGrid } from 'lucide-react'
 import { ScrollArea } from './ui/scroll-area'
 import { useTranslation } from '../i18n/LanguageContext'
 import { Project } from '../types'
 import { cn } from '../lib/utils'
 import { DynamicIcon } from './IconManager' 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 
 interface SidebarProps {
   projects: Project[];
@@ -13,92 +15,152 @@ interface SidebarProps {
   onNewProject: () => void;
 }
 
-const Tooltip = ({ children, text }: { children: React.ReactNode, text: string }) => (
-  <div className="group/tooltip relative flex items-center justify-center">
-    {children}
-    <span className="absolute left-14 opacity-0 -translate-x-2 transition-all duration-200 group-hover/tooltip:opacity-100 group-hover/tooltip:translate-x-0 z-50 whitespace-nowrap bg-zinc-900 border border-white/10 text-zinc-200 text-[10px] font-medium px-2.5 py-1 rounded-md shadow-xl backdrop-blur-sm pointer-events-none">
-      {text}
-      <span className="absolute -left-1 top-1/2 -translate-y-1/2 border-4 border-transparent border-r-zinc-900/90 border-l-0"></span>
-    </span>
-  </div>
-)
-
 export function Sidebar({ projects, currentProject, runningProjects, onSelectProject, onNewProject }: SidebarProps) {
   const { t } = useTranslation()
+  const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <aside className="w-[72px] flex flex-col items-center bg-[#020202] border-r border-white/5 z-50 h-full select-none">
-      
-      <div className="h-[70px] flex items-center justify-center shrink-0">
-        <div className="w-10 h-10 bg-gradient-to-br from-zinc-100 to-zinc-400 rounded-xl flex items-center justify-center shadow-lg shadow-white/5 relative z-10 ring-1 ring-white/20">
-             <Terminal className="w-5 h-5 text-black" strokeWidth={2.5} />
+    <aside 
+      className={cn(
+        "flex flex-col bg-zinc-50 dark:bg-[#020202] border-r border-border z-50 h-full select-none transition-all duration-300 ease-in-out",
+        isExpanded ? "w-64" : "w-[72px]"
+      )}
+    >
+      {/* Header / Home Button */}
+      <div 
+        className="h-[70px] flex items-center shrink-0 cursor-pointer group px-4"
+        onClick={() => onSelectProject(null)}
+        title={t('home.welcome')}
+      >
+        <div className="flex items-center gap-3 w-full">
+            <div className={cn(
+                "w-10 h-10 bg-gradient-to-br from-zinc-100 to-zinc-400 dark:from-zinc-100 dark:to-zinc-400 rounded-xl flex items-center justify-center shadow-lg shadow-black/5 dark:shadow-white/5 relative z-10 ring-1 ring-black/5 dark:ring-white/20 shrink-0 transition-transform duration-300",
+                !currentProject && "scale-110 ring-indigo-500/50 dark:ring-indigo-400/50"
+            )}>
+                <Terminal className="w-5 h-5 text-black" strokeWidth={2.5} />
+            </div>
+            
+            <div className={cn(
+                "flex flex-col overflow-hidden transition-all duration-300",
+                isExpanded ? "opacity-100 w-auto translate-x-0" : "opacity-0 w-0 -translate-x-4 pointer-events-none"
+            )}>
+                <span className="text-sm font-bold text-foreground tracking-tight whitespace-nowrap">Software Launcher</span>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">Dev Environment</span>
+            </div>
         </div>
       </div>
 
-      <div className="flex flex-col items-center w-full gap-4 pb-4">
-        <Tooltip text={t('home.welcome')}>
-          <button 
-            onClick={() => onSelectProject(null)}
-            className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
-              !currentProject 
-                ? "bg-zinc-100 text-black shadow-[0_0_15px_rgba(255,255,255,0.15)]" 
-                : "text-zinc-500 hover:text-zinc-100 hover:bg-white/10"
-            )}
-          >
-            <LayoutDashboard className="w-5 h-5" strokeWidth={!currentProject ? 2.5 : 2} />
-          </button>
-        </Tooltip>
-
-        <div className="w-8 h-[1px] bg-white/10" />
+      <div className={cn("w-full px-4 mb-2 transition-opacity duration-300", isExpanded ? "opacity-100" : "opacity-0 h-0 overflow-hidden")}>
+         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Projects</div>
       </div>
+      
+      {!isExpanded && <div className="w-8 h-[1px] bg-border mx-auto mb-3" />}
 
-      <ScrollArea className="flex-1 w-full">
-        <div className="flex flex-col gap-3 items-center w-full px-2 pb-4">
-          
-          {projects.map((project) => {
-            const isActive = currentProject?.id === project.id;
-            const isRunning = runningProjects.has(project.id);
+      <TooltipProvider delayDuration={0} disableHoverableContent={isExpanded}>
+        <ScrollArea className="flex-1 w-full">
+          <div className={cn("flex flex-col gap-2 w-full pb-4", isExpanded ? "px-3" : "items-center px-2")}>
+            
+            {projects.map((project) => {
+              const isActive = currentProject?.id === project.id;
+              const isRunning = runningProjects.has(project.id);
 
-            return (
-              <Tooltip key={project.id} text={project.name}>
+              const ButtonContent = (
                 <button
                     onClick={() => onSelectProject(project)}
                     className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 relative group overflow-hidden",
+                      "flex items-center gap-3 transition-all duration-200 relative group overflow-hidden",
+                      isExpanded 
+                        ? "w-full px-3 py-2.5 rounded-lg text-sm font-medium" 
+                        : "w-10 h-10 rounded-xl justify-center",
                       isActive
-                        ? "bg-zinc-800 text-white shadow-md border border-white/10" 
-                        : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5 border border-transparent hover:border-white/5"
+                        ? "bg-white dark:bg-zinc-800 text-foreground dark:text-white shadow-sm border border-black/5 dark:border-white/10" 
+                        : "text-zinc-500 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 border border-transparent hover:border-black/5 dark:hover:border-white/5"
                     )}
                 >
                     {/* Dynamic Icon */}
                     <DynamicIcon 
                         name={project.icon || 'Box'} 
-                        className={cn("w-5 h-5 transition-transform duration-300", isActive ? "scale-110" : "")} 
+                        className={cn(
+                            "transition-transform duration-300 shrink-0", 
+                            isActive ? "scale-110" : "",
+                            isExpanded ? "w-4 h-4" : "w-5 h-5"
+                        )} 
                     />
                     
-                    {/* Running Dot Indicator (Minimal) */}
+                    {/* Text Label (Expanded Only) */}
+                    {isExpanded && (
+                        <span className="truncate">{project.name}</span>
+                    )}
+
+                    {/* Running Dot Indicator */}
                     {isRunning && (
-                      <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                      <span className={cn(
+                          "absolute bg-emerald-500 rounded-full shadow-[0_0_5px_rgba(16,185,129,0.5)]",
+                          isExpanded ? "right-3 w-1.5 h-1.5" : "top-2 right-2 w-1.5 h-1.5"
+                      )} />
                     )}
                 </button>
-              </Tooltip>
-            )
-          })}
+              )
 
-          <div className="pt-2">
-            <Tooltip text={t('buttons.newProject')}>
-              <button 
-                onClick={onNewProject}
-                className="w-10 h-10 rounded-xl border border-dashed border-zinc-700 text-zinc-600 hover:text-zinc-100 hover:border-zinc-400 hover:bg-white/5 transition-all duration-300 flex items-center justify-center group"
-              >
-                <Plus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" strokeWidth={1.5} />
-              </button>
-            </Tooltip>
+              // Only wrap in tooltip if NOT expanded
+              if (isExpanded) {
+                  return <div key={project.id}>{ButtonContent}</div>
+              }
+
+              return (
+                <Tooltip key={project.id}>
+                  <TooltipTrigger asChild>
+                    {ButtonContent}
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{project.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })}
+
+            <div className={cn("pt-2", isExpanded && "px-0")}>
+               {isExpanded ? (
+                   <button 
+                    onClick={onNewProject}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-400 hover:text-foreground hover:border-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-200 text-xs font-medium group"
+                   >
+                     <div className="p-1 rounded bg-muted group-hover:bg-background transition-colors">
+                        <Plus className="w-3 h-3" />
+                     </div>
+                     <span>{t('buttons.newProject')}</span>
+                   </button>
+               ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        onClick={onNewProject}
+                        className="w-10 h-10 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-400 hover:text-foreground hover:border-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-300 flex items-center justify-center group"
+                      >
+                        <Plus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" strokeWidth={1.5} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>{t('buttons.newProject')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+               )}
+            </div>
+
           </div>
+        </ScrollArea>
+      </TooltipProvider>
 
-        </div>
-      </ScrollArea>
+      {/* Footer / Toggle */}
+      <div className="p-4 border-t border-border mt-auto flex justify-center">
+        <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        >
+            {isExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+      </div>
     </aside>
   )
 }
+

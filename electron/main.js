@@ -446,11 +446,7 @@ ipcMain.handle('analyze-project-with-ai', async (event, projectPath) => {
   return await projectAnalyzer.analyze(projectPath);
 });
 
-ipcMain.handle('get-performance-history', async (e, id) => performanceMonitor?.getHistory(id) || []);
-ipcMain.handle('get-health-status', async (e, id) => healthCheckMonitor?.getProjectStatus(id) || []);
-ipcMain.handle('get-health-history', async (e, id) => healthCheckMonitor?.getHistory(id) || []);
-ipcMain.handle('get-available-periods', async (e, id) => performanceMonitor?.getAvailablePeriods(id) || []);
-ipcMain.handle('load-performance-history', async (e, id, start, end) => performanceMonitor?.loadHistoryFromFiles(id, new Date(start), new Date(end)) || []);
+// IPC Handlers removed: get-performance-history, get-health-status, get-health-history, get-available-periods, load-performance-history
 
 // --- Project Context Composer & IDE Utils ---
 
