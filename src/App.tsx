@@ -22,6 +22,7 @@ import vscodeIcon from './assets/vscode.svg'
 import { Toaster } from './components/ui/toaster'
 import { useToast } from './components/ui/use-toast'
 import { ToastAction } from './components/ui/toast'
+import { SetupWizard } from './components/SetupWizard'
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null }
 
@@ -48,6 +49,7 @@ function normalizeTask(task: any): Task {
 
 function App() {
   const { toast } = useToast()
+  const [showSetup, setShowSetup] = useState(() => !localStorage.getItem('setup_completed'))
   const [view, setView] = useState<'home' | 'project'>('home')
   const [activeTab, setActiveTab] = useState<'dashboard' | 'context'>('dashboard')
   const [projects, setProjects] = useState<Project[]>([])
@@ -336,6 +338,7 @@ function App() {
     if (result.success) {
       setFormName(result.projectName || '')
       setFormDescription(result.description || '')
+      setFormIcon(result.icon || 'Box')
       setFormTasks(result.tasks.map((t: any) => ({
         ...normalizeTask(t),
         name: t.name,
@@ -404,6 +407,10 @@ function App() {
   }
 
   if (isLoading) return null
+
+  if (showSetup) {
+    return <SetupWizard onComplete={() => setShowSetup(false)} />
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-indigo-500/30">

@@ -13,6 +13,8 @@ class ProjectAnalyzer {
       const tasks = [];
       let mainProjectName = path.basename(rootPath);
       let mainDescription = '';
+      let hasBackend = false;
+      let hasFrontend = false;
 
       for (const pPath of packageJsonPaths) {
         try {
@@ -21,13 +23,17 @@ class ProjectAnalyzer {
             const dirName = path.dirname(pPath);
             const relativeDir = path.relative(rootPath, dirName);
             
-            // If it's the root package.json, use its details for the project info
+            // Only update main project details if this is the ROOT package.json
             if (relativeDir === '') {
-                mainProjectName = pkg.name || mainProjectName;
+                if (pkg.name) mainProjectName = pkg.name;
                 mainDescription = pkg.description || mainDescription;
             }
 
             const prefix = relativeDir ? `${relativeDir.replace(/\\/g, '/')}` : '';
+            
+            // Heuristics for Project Icon
+            if (prefix.includes('backend') || prefix.includes('api') || prefix.includes('server')) hasBackend = true;
+            if (prefix.includes('frontend') || prefix.includes('web') || prefix.includes('client') || prefix.includes('app')) hasFrontend = true;
 
             if (pkg.scripts) {
                 for (const [scriptName, command] of Object.entries(pkg.scripts)) {
@@ -58,10 +64,17 @@ class ProjectAnalyzer {
         }
       }
 
+      // Determine Project Icon
+      let projectIcon = 'Box';
+      if (hasBackend && hasFrontend) projectIcon = 'Layers'; // Fullstack
+      else if (hasBackend) projectIcon = 'Server';
+      else if (hasFrontend) projectIcon = 'Layout';
+
       return {
         success: true,
         projectName: mainProjectName,
         description: mainDescription || `Imported project with ${tasks.length} detected tasks.`,
+        icon: projectIcon,
         tasks: tasks.sort((a, b) => a.name.localeCompare(b.name))
       };
     } catch (error) {
