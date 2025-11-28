@@ -68,12 +68,18 @@
       "assets/**/*"
     ],
     "directories": {
-      "output": "release",
+      "output": "dist_release",
       "buildResources": "assets"
     },
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": true
     },
     "linux": {
       "target": "AppImage",

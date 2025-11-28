@@ -42,3 +42,4 @@ yarn-error.log*
 # projects.json
 dist-electron
 view.py
+dist_release
